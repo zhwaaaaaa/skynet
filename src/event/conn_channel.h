@@ -7,28 +7,37 @@
 
 #include "channel.h"
 #include <string>
+#include <util/buffer.h>
 
-class ConnChannel : public Channel {
-private:
-    std::string host;
-    int port;
-public:
-    explicit ConnChannel(int fd, const char *host, int port) : Channel(), host(host), port(port) {
-        this->fd = fd;
-    }
+namespace sn {
 
-    int Port() const {
-        return port;
-    }
+    class ConnChannel : public Channel {
+        enum DECODE_STATUS {
+            READING_HEAD,
+            READING_BODY
+        };
+    private:
+        EndPoint raddr;
+        Buffer buf;
+        DECODE_STATUS decodeStatus;
 
-    const std::string &Host() {
-        return host;
-    }
+    public:
+        explicit ConnChannel(int fd, ip_t ip, int port) : Channel(), raddr(ip, port), buf(16384),
+                                                          decodeStatus(READING_HEAD) {
+            this->fd = fd;
+        }
 
-    virtual int Init() override;
+        const EndPoint &RemoteAddr() const {
+            return raddr;
+        }
 
-    virtual void OnEvent(int mask) override;
-};
+        virtual int Init() override;
 
+        virtual void OnEvent(int mask) override;
+
+    private:
+        int decodeHead(Segment<uint8_t> *head);
+    };
+}
 
 #endif //MESHER_CONN_CHANNEL_H

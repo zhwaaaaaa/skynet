@@ -8,28 +8,40 @@
 
 #include <zconf.h>
 #include "event_dispatcher.h"
+#include "endpoint.h"
 
-class Channel {
-protected:
-    int fd;
-    const EventDispatcher *dispatcher;
-public:
+namespace sn {
 
-    Channel();
+    class Channel {
+    private:
+        int event;
+    protected:
+        int fd;
+        const EventDispatcher *dispatcher;
+    public:
 
-    virtual int Init();
+        int CurrentEvent(){
+            return event;
+        }
 
-    int MarkNonBlock() const;
+        Channel();
 
-    virtual ~Channel();
+        virtual int Init();
 
-    virtual int AddEventLoop(const EventDispatcher *dispatcher);
+        int MarkNonBlock() const;
 
-    friend class EventDispatcher;
+        int getLocalAddr(EndPoint *out) const;
 
-protected:
-    virtual void OnEvent(int evt)=0;
-};
+        virtual ~Channel();
 
+        virtual int AddEventLoop(const EventDispatcher *dispatcher);
+
+        friend class EventDispatcher;
+
+    protected:
+        virtual void OnEvent(int evt)=0;
+    };
+
+}
 
 #endif //MESHER_CHANNEL_H

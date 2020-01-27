@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(mesher)
+project(skynet)
 
 set(CMAKE_CXX_STANDARD 14)
 
@@ -10,5 +10,9 @@ set(SOURCE_FILES src/main.cpp
         src/event/channel.cpp
         src/event/socket_channel.cpp
         src/event/conn_channel.cpp
+        src/util/buffer.h
+        src/event/endpoint.cpp
+        src/event/endpoint.h
         )
-add_executable(mesher ${SOURCE_FILES})
+add_executable(skynet ${SOURCE_FILES})
+target_link_libraries(skynet glog gflags)

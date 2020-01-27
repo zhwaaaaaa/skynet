@@ -7,45 +7,89 @@
 #include <netinet/tcp.h>
 #include <iostream>
 #include "conn_channel.h"
-#include <errno.h>
+#include <glog/logging.h>
 
-void ConnChannel::OnEvent(int mask) {
+namespace sn {
+    using namespace google;
 
-    if (mask & Event_READABLE) {
-        char buf[2048];
-        size_t len = 2048;
-        ssize_t i = read(fd, buf, len);
-
-        std::cout << "1_size:" << i << std::endl;
-        i = read(fd, buf, len);
-        std::cout << "1_size:" << i << std::endl;
-        if (i == -1 && errno == EAGAIN) {
-            std::cout << "读到末尾了" << std::endl;
+    void ConnChannel::OnEvent(int mask) {
+        if (mask & EVENT_CLOSE) {
+            //
+            LOG(INFO) << "closed: " << raddr;
+            return;
         }
-        const char str[] = "读到了";
-        write(fd, str, sizeof(str));
+
+        if (mask & EVENT_READABLE) {
+            size_t nbytes;
+            ssize_t readed;
+            do {
+                nbytes = buf.canWriteSize();
+                readed = read(fd, buf.writePtr(), nbytes);
+                if (readed == -1) {
+                    if (errno != EAGAIN) {
+                        LOG(WARNING) << "ERROR: " << strerror(errno);
+                        return;
+                    }
+                }
+                if (readed == 0) {
+                    LOG(WARNING) << "CLOSED: ";
+                    return;
+                }
+
+                buf.addWrited(readed);
+                size_t size = buf.canReadSize();
+                uint8_t len = buf.readUnint<uint8_t>();
+                if (size >= len) {
+                    // header读完成
+                    int r = this->decodeHead(buf.segment<uint8_t>());
+                    if (r == -1) {
+                        LOG(WARNING) << "ERROR DECODE: ";
+                        return;
+                    }
+
+                    buf.addReaded(len - 4);
+                    Segment<uint32_t> *const data = buf.segment<uint32_t>();
+
+                }
+            } while (readed < nbytes);
+
+
+            if (decodeStatus == READING_HEAD) {
+
+            }
+
+        }
+
+
     }
 
-}
 
-static int setTcpNoDelay(int fd, int val) {
-    if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1) {
-        return -1;
+    static int setTcpNoDelay(int fd, int val) {
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1) {
+            return -1;
+        }
+        return 0;
     }
-    return 0;
-}
 
-static int setTcpKeepAlive(int fd) {
-    int yes = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) == -1) {
-        return -1;
+    static int setTcpKeepAlive(int fd) {
+        int yes = 1;
+        if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) == -1) {
+            return -1;
+        }
+        return 0;
     }
-    return 0;
-}
 
-int ConnChannel::Init() {
-    MarkNonBlock();
-    setTcpNoDelay(fd, 1);
-    setTcpKeepAlive(fd);
-    return 0;
+    int ConnChannel::Init() {
+        MarkNonBlock();
+        setTcpNoDelay(fd, 1);
+        setTcpKeepAlive(fd);
+        return 0;
+    }
+
+    int ConnChannel::decodeHead(Segment<uint8_t> *head) {
+        Segment<uint8_t> *const servName = head->sub();
+        Segment<uint8_t> *const methodName = head->sub(servName->len + sizeof(uint8_t));
+        return 0;
+    }
+
 }
