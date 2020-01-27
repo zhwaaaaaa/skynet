@@ -13,7 +13,7 @@ namespace sn {
 
     template<typename LEN>
     struct __attribute__ ((__packed__)) Segment {
-        LEN len;
+        const LEN len;
         char buf[];
 
         template<typename NEW_LEN = LEN>
@@ -23,7 +23,7 @@ namespace sn {
     };
 
     struct BufStr {
-        size_t len;
+        uint len;
         const char *buf;
 
         template<typename LEN>
@@ -41,71 +41,79 @@ namespace sn {
 
 namespace sn {
 
+    struct SegmentRef {
+        uint offset;
+        uint len;
+        char *buf;
+        SegmentRef *prev;
+        SegmentRef *next;
+    };
+    static thread_local SegmentRef *cache;// thread local
+
     class Buffer {
     private:
-        const size_t capacity;
-        size_t ri;
-        size_t wi;
+    private:
+        const uint capacity;
+        uint wi;
         char *buf;
 
+        SegmentRef *head;
+        SegmentRef *tail;
+
     public:
-        explicit Buffer(const size_t capacity) :
-                capacity(capacity), ri(0), wi(0) {
+        explicit Buffer(const uint capacity) :
+                capacity(capacity), head(nullptr), wi(0) {
             buf = static_cast<char *>(malloc(capacity));
         }
 
-        Buffer(Buffer &&buffer) noexcept :
-                capacity(buffer.capacity), buf(buffer.buf), ri(buffer.ri), wi(buffer.wi) {
+        Buffer(Buffer &&buffer) noexcept : capacity(buffer.capacity), buf(buffer.buf), head(buffer.head),
+                                           tail(buffer.tail), wi(buffer.wi) {
             buffer.buf = nullptr;
+            buffer.head = nullptr;
+            buffer.tail = nullptr;
         }
 
         ~Buffer() {
-            if (buf != nullptr) {
+            if (buf) {
                 free(buf);
+                buf = nullptr;
+            }
+            if (head) {
+                head->prev = cache;
+                cache = tail;
+                head = nullptr;
+                tail = nullptr;
             }
         }
 
-        void reset(char *buf, size_t ri, size_t wi) {
-            if (buf != this->buf) {
-                free(this->buf);
-            }
-            this->buf = buf;
-            this->ri = ri;
-            this->wi = ri;
-        }
-
-        size_t canWriteSize() {
+        uint canWriteSize() {
             return capacity - wi;
         }
 
         char *readPtr() {
-            return buf + ri;
+            return tail ? tail->buf + tail->len : buf;
         }
 
         char *writePtr() {
             return buf + wi;
         }
 
-        size_t canReadSize() {
-            return wi - ri;
+        uint canReadSize() {
+            return static_cast<uint>((ulong) wi - (ulong) readPtr());
         }
 
         template<typename T>
-        T readUnint() const {
-            return *reinterpret_cast<T *>(buf + ri);
+        T readUint() const {
+            return *reinterpret_cast<T *>(tail ? tail->buf + tail->len : buf);
         }
 
         void addWrited(int w) {
             wi += w;
         }
 
-        void addReaded(int r) {
-            ri += r;
-        }
-
         template<typename LEN>
-        Segment<LEN> *segment() {
-            return reinterpret_cast<Segment<LEN> *>(buf + ri);
+        Segment<LEN> *segment(LEN len = 0) {
+            return reinterpret_cast<Segment<LEN> *>((tail ? tail->buf + tail->len : buf) - len);
         }
     };
 }

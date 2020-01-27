@@ -18,10 +18,14 @@ namespace sn {
 
     class ConnChannel;
 
-    typedef Action *(writeFunc)(ConnChannel *ch, void *data);
+#define TRY_WRITE 0
+#define CAN_WRITE 1
+#define WRITE_ERR 2
+
+    typedef Action (*writeFunc)(int status, ConnChannel *ch, void *param);
 
     struct WriteEvt {
-        void *data;
+        void *param;
         writeFunc func;
         WriteEvt *nextEvt;
     };
@@ -33,7 +37,6 @@ namespace sn {
         uint32_t *clientId;
         uint32_t *serverId;
         uint32_t bodyLen;
-
     };
 
     class ConnChannel : public Channel {
@@ -44,15 +47,15 @@ namespace sn {
     private:
         Buffer buf;
         DECODE_STATUS decodeStatus;
+        WriteEvt *headEvt;
+        WriteEvt *tailEvt;
 
     public:
-        explicit ConnChannel(int fd) : Channel(),
-                                       buf(16384),
-                                       decodeStatus(READING_HEAD) {
-            this->fd = fd;
-        }
+        explicit ConnChannel(int fd);
 
         int Init() override;
+
+        virtual int AddWriteEvt(writeFunc func, void *param) final;
 
     protected:
         int doRead() override;

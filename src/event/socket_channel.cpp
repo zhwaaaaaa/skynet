@@ -14,15 +14,6 @@
 namespace sn {
     using namespace google;
 
-    static int anetV6Only(int s) {
-        int yes = 1;
-        if (setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, &yes, sizeof(yes)) == -1) {
-            close(s);
-            return -1;
-        }
-        return 0;
-    }
-
     static int setReuseAddr(int fd) {
         int yes = 1;
         /* Make sure connection-intensive things like the redis benckmark
