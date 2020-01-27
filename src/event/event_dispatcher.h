@@ -14,6 +14,7 @@
 #define EVENT_WRITABLE 2   /* Fire when descriptor is writable. */
 #define EVENT_CLOSE 4
 #define EVENT_UPDATE 8
+#define EVENT_MASK 7
 
 namespace sn {
     class Channel;

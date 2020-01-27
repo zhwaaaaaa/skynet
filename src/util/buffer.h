@@ -20,9 +20,26 @@ namespace sn {
         Segment<NEW_LEN> *sub(LEN offset = 0) {
             return reinterpret_cast<Segment<NEW_LEN> *>(buf + offset);
         }
-
-
     };
+
+    struct BufStr {
+        size_t len;
+        const char *buf;
+
+        template<typename LEN>
+        BufStr(const Segment<LEN> &s) noexcept {
+            len = s.len;
+            buf = s.buf;
+        }
+    };
+
+    inline std::ostream &operator<<(std::ostream &os, const sn::BufStr &s) {
+        return os << "[" << s.len << "]" << (s.buf, s.len);
+    }
+}
+
+
+namespace sn {
 
     class Buffer {
     private:

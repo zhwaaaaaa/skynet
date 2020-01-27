@@ -6,16 +6,21 @@
 #include <fcntl.h>
 
 namespace sn {
-
-    Channel::Channel() : fd(-1), dispatcher(nullptr), event(EVENT_NONE) {
-
-    }
-
-    int Channel::Init() {
-        if (this->fd < 0) {
+    int markNonBlock(int fd) {
+        int opts;
+        opts = fcntl(fd, F_GETFL);
+        if (opts < 0) {
+            return -1;
+        }
+        opts = opts | O_NONBLOCK;
+        if (fcntl(fd, F_SETFL, opts) < 0) {
             return -1;
         }
         return 0;
+    }
+
+    Channel::Channel() : fd(-1), dispatcher(nullptr), event(EVENT_NONE) {
+
     }
 
     Channel::~Channel() {
@@ -37,21 +42,30 @@ namespace sn {
         return dispatcher->AddChannelEvent(this, EVENT_READABLE);
     }
 
-    int Channel::MarkNonBlock() const {
-        int opts;
-        opts = fcntl(fd, F_GETFL);
-        if (opts < 0) {
-            return -1;
+    void Channel::OnEvent(int mask) {
+        if (mask & EVENT_CLOSE) {
+            goto err;
         }
-        opts = opts | O_NONBLOCK;
-        if (fcntl(fd, F_SETFL, opts) < 0) {
-            return -1;
-        }
-        return 0;
-    }
 
-    int Channel::getLocalAddr(EndPoint *out) const {
-        return get_local_side(fd, out);
+        if (mask & EVENT_READABLE) {
+            if (doRead() != 0) {
+                goto err;
+            }
+        }
+
+        if (mask & EVENT_WRITABLE) {
+            if (doWrite() != 0) {
+                goto err;
+            }
+        }
+
+        if (event & EVENT_UPDATE) {
+            dispatcher->ModChannelEvent(this, event & EVENT_MASK);
+        }
+        return;
+        err:
+        dispatcher->DelChannelEvent(this);
+        doClose();
     }
 }
 

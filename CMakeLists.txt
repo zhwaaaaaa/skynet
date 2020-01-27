@@ -13,6 +13,8 @@ set(SOURCE_FILES src/main.cpp
         src/util/buffer.h
         src/event/endpoint.cpp
         src/event/endpoint.h
+        src/event/tcp_channel.cpp
+        src/event/tcp_channel.h
         )
 add_executable(skynet ${SOURCE_FILES})
 target_link_libraries(skynet glog gflags)

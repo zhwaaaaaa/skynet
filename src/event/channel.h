@@ -20,26 +20,63 @@ namespace sn {
         const EventDispatcher *dispatcher;
     public:
 
-        int CurrentEvent(){
+        int CurrentEvent() {
             return event;
         }
 
         Channel();
 
-        virtual int Init();
-
-        int MarkNonBlock() const;
-
-        int getLocalAddr(EndPoint *out) const;
+        virtual int Init()=0;
 
         virtual ~Channel();
 
         virtual int AddEventLoop(const EventDispatcher *dispatcher);
 
+        virtual void OnEvent(int evt) final;
+
         friend class EventDispatcher;
 
     protected:
-        virtual void OnEvent(int evt)=0;
+
+        virtual void doClose()=0;
+
+        virtual int doRead()=0;
+
+        virtual int doWrite()=0;
+
+        bool markRead() {
+            if (event & EVENT_READABLE == 0) {
+                event |= EVENT_READABLE | EVENT_UPDATE;
+                return true;
+            }
+            return false;
+        }
+
+        bool clearRead() {
+            if (event & EVENT_READABLE) {
+                event ^= EVENT_READABLE;
+                event |= EVENT_UPDATE;
+                return true;
+            }
+            return false;
+        }
+
+        bool markWrite() {
+            if (event & EVENT_WRITABLE == 0) {
+                event |= EVENT_WRITABLE | EVENT_UPDATE;
+                return true;
+            }
+            return false;
+        }
+
+        bool clearWrite() {
+            if (event & EVENT_WRITABLE == 0) {
+                event ^= EVENT_WRITABLE;
+                event |= EVENT_UPDATE;
+                return true;
+            }
+            return false;
+        }
     };
 
 }

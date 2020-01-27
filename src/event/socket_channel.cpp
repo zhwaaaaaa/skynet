@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include "conn_channel.h"
+#include "tcp_channel.h"
 #include <glog/logging.h>
 
 namespace sn {
@@ -70,38 +71,46 @@ namespace sn {
                     return -1;
                 }
                 this->fd = s;
-                MarkNonBlock();
+                LOG(INFO) << "LISTENING AT " << EndPoint(*reinterpret_cast<sockaddr_in *>(p->ai_addr));
                 return 0;
             }
         }
         return -1;
     }
 
-    void SocketChannel::OnEvent(int evt) {
-        if (evt & EVENT_READABLE) {
-            sockaddr_storage sa = {0};
-            socklen_t in_len = sizeof(in_addr);
-            int newFd = accept(fd, reinterpret_cast<sockaddr *>(&sa), &in_len);
-            ConnChannel *channel;
-            if (newFd != -1) {
-                // 判断是否是IPV4还是IPV6
-                if (sa.ss_family == AF_INET) {
-                    auto *s = (struct sockaddr_in *) &sa;
-                    // ip地址转化为字符串
-                    channel = new ConnChannel(newFd, s->sin_addr, ntohs(s->sin_port));
+    void SocketChannel::doClose() {
 
-                } else {
-                    LOG(ERROR) << "cannot support ipv6";
-                    return;
-                }
-
-                int i = channel->Init();
-                if (i < 0) {
-                    delete channel;
-                    return;
-                }
-                channel->AddEventLoop(dispatcher);
-            }
-        }
     }
+
+    int SocketChannel::doRead() {
+        sockaddr_storage sa = {0};
+        socklen_t in_len = sizeof(in_addr);
+        int newFd = accept(fd, reinterpret_cast<sockaddr *>(&sa), &in_len);
+        ConnChannel *channel;
+        if (newFd != -1) {
+            // 判断是否是IPV4还是IPV6
+            if (sa.ss_family == AF_INET) {
+                auto *s = (struct sockaddr_in *) &sa;
+                // ip地址转化为字符串
+                channel = new TcpChannel(newFd, s->sin_addr, ntohs(s->sin_port));
+
+            } else {
+                LOG(ERROR) << "cannot support ipv6";
+                return 0;
+            }
+
+            int i = channel->Init();
+            if (i < 0) {
+                delete channel;
+                return 0;
+            }
+            channel->AddEventLoop(dispatcher);
+        }
+        return 0;
+    }
+
+    int SocketChannel::doWrite() {
+        return 0;
+    }
+
 }

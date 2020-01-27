@@ -26,7 +26,14 @@ namespace sn {
                                                                                             backlog(backlog) {
         }
 
-        virtual void OnEvent(int evt);
+    protected:
+
+        void doClose() override;
+
+        int doRead() override;
+
+        int doWrite() override;
+
 
     private:
         int port;

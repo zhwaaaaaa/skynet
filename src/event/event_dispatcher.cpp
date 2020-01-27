@@ -49,7 +49,7 @@ namespace sn {
 
     int EventDispatcher::AddChannelEvent(Channel *channel, int mask) const {
         epoll_event ee = {0}; /* avoid valgrind warning */
-        ee.events = 0;
+        ee.events = EPOLLHUP;
         if (mask & EVENT_READABLE) ee.events |= EPOLLIN | EPOLLET;
         if (mask & EVENT_WRITABLE) ee.events |= EPOLLOUT;
         ee.data.ptr = channel;
@@ -61,8 +61,8 @@ namespace sn {
 
     int EventDispatcher::ModChannelEvent(Channel *channel, int mask) const {
         epoll_event ee = {0}; /* avoid valgrind warning */
-        ee.events = 0;
-        if (mask & EVENT_READABLE) ee.events |= EPOLLIN;
+        ee.events = EPOLLHUP;
+        if (mask & EVENT_READABLE) ee.events |= EPOLLIN | EPOLLET;
         if (mask & EVENT_WRITABLE) ee.events |= EPOLLOUT;
         int fd = channel->fd;
         ee.data.ptr = channel;

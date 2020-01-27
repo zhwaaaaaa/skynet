@@ -5,7 +5,6 @@
 using namespace sn;
 
 int main() {
-    std::cout << "Hello, World!" << std::endl;
 
     EventDispatcher dispatcher(100);
 

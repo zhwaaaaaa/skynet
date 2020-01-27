@@ -10,6 +10,7 @@
 #include <cstdio>                             // snprintf
 #include <cstdlib>                            // strtol
 #include <gflags/gflags.h>
+#include <glog/logging.h>
 #include "endpoint.h"                    // ip_t
 
 //supported since Linux 3.9.
@@ -143,7 +144,7 @@ namespace sn {
         }
         ++i;
         char *end = nullptr;
-        point->port = strtol(str + i, &end, 10);
+        point->port = static_cast<int>(strtol(str + i, &end, 10));
         if (end == str + i) {
             return -1;
         } else if (*end) {
@@ -188,7 +189,7 @@ namespace sn {
             ++i;
         }
         char *end = nullptr;
-        point->port = strtol(str + i, &end, 10);
+        point->port = static_cast<int>(strtol(str + i, &end, 10));
         if (end == str + i) {
             return -1;
         } else if (*end) {
@@ -259,5 +260,78 @@ namespace sn {
         }
         return 0;
     }
+
+
+    int tcp_connect(EndPoint point, EndPoint *localAddr) {
+        const int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            return -1;
+        }
+        struct sockaddr_in serv_addr;
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr = point.ip;
+        serv_addr.sin_port = htons(static_cast<uint16_t>(point.port));
+        int rc = ::connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
+        if (rc < 0) {
+            return -1;
+        }
+        if (localAddr != NULL) {
+            if (get_local_side(sockfd, localAddr) == 0) {
+                CHECK(false) << "Fail to get the local port of sockfd=" << sockfd;
+            }
+        }
+        return sockfd;
+    }
+
+    int tcp_listen(EndPoint point) {
+        const int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        if (sockfd < 0) {
+            return -1;
+        }
+
+        if (FLAGS_reuse_addr) {
+#if defined(SO_REUSEADDR)
+            const int on = 1;
+            if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR,
+                           &on, sizeof(on)) != 0) {
+                return -1;
+            }
+#else
+            LOG(ERROR) << "Missing def of SO_REUSEADDR while -reuse_addr is on";
+        return -1;
+#endif
+        }
+
+        if (FLAGS_reuse_port) {
+#if defined(SO_REUSEPORT)
+            const int on = 1;
+            if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT,
+                           &on, sizeof(on)) != 0) {
+                LOG(WARNING) << "Fail to setsockopt SO_REUSEPORT of sockfd=" << sockfd;
+            }
+#else
+            LOG(ERROR) << "Missing def of SO_REUSEPORT while -reuse_port is on";
+        return -1;
+#endif
+        }
+
+        struct sockaddr_in serv_addr;
+        bzero((char *) &serv_addr, sizeof(serv_addr));
+        serv_addr.sin_family = AF_INET;
+        serv_addr.sin_addr = point.ip;
+        serv_addr.sin_port = htons(static_cast<uint16_t>(point.port));
+        if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) != 0) {
+            return -1;
+        }
+        if (listen(sockfd, 65535) != 0) {
+            //             ^^^ kernel would silently truncate backlog to the value
+            //             defined in /proc/sys/net/core/somaxconn if it is less
+            //             than 65535
+            return -1;
+        }
+        return sockfd;
+    }
+
 
 }  // namespace np
