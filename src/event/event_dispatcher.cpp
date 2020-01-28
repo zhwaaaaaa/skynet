@@ -34,7 +34,9 @@ namespace sn {
                 if (e.events & EPOLLOUT) mask |= EVENT_WRITABLE; //写
                 if (e.events & EPOLLERR) mask |= EVENT_WRITABLE; //出错
                 if (e.events & EPOLLHUP) mask |= EVENT_CLOSE; //关闭事件
-                ptr->OnEvent(mask);
+                if (ptr->OnEvent(mask) != 0) {
+                    delete ptr;
+                }
             }
         }
 

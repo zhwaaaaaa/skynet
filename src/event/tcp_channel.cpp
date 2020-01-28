@@ -7,7 +7,12 @@
 namespace sn {
     TcpChannel::TcpChannel(int fd, ip_t ip, int port) : ConnChannel(fd), raddr(ip, port) {
         get_local_side(fd, &laddr);
-        LOG(INFO) << raddr << " --> " << laddr;
+        LOG(INFO) << raddr << " --> " << laddr << " TcpChannel start";
+    }
+
+    TcpChannel::~TcpChannel() {
+        LOG(INFO) << raddr << " --> " << laddr << " TcpChannel stop";
+
     }
 }
 

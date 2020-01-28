@@ -158,6 +158,8 @@ namespace sn {
         out:
         if (!evt) {
             tailEvt = nullptr;
+            // hav nothing to write
+            clearWrite();
         }
         return ret;
     }
@@ -165,25 +167,29 @@ namespace sn {
 
     int ConnChannel::AddWriteEvt(writeFunc func, void *param) {
         if (!tailEvt) {
+            // 以前还没有要写的东西，所以先尝试第一次写。
             Action action = func(TRY_WRITE, this, param);
             switch (action) {
+                case SUCCESS:
+                    // 第一次写就把东西写完了。不需要添加到写队列中了
+                    return 0;
                 case ERROR:
                     return -1;
                 case NEXT:
                     headEvt = tailEvt = createWriteEvt(func, param);
+                    // having something to write
             }
         } else {
             tailEvt->nextEvt = createWriteEvt(func, param);
             tailEvt = tailEvt->nextEvt;
         }
-
+        markWrite();
         return 0;
     }
 
     ConnChannel::ConnChannel(int fd) :
             Channel(), buf(16384), decodeStatus(READING_HEAD), headEvt(nullptr), tailEvt(nullptr) {
         this->fd = fd;
-
     }
 
 }

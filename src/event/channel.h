@@ -32,7 +32,7 @@ namespace sn {
 
         virtual int AddEventLoop(const EventDispatcher *dispatcher);
 
-        virtual void OnEvent(int evt) final;
+        virtual int OnEvent(int evt) final;
 
         friend class EventDispatcher;
 
@@ -70,7 +70,7 @@ namespace sn {
         }
 
         bool clearWrite() {
-            if (event & EVENT_WRITABLE == 0) {
+            if (event & EVENT_WRITABLE) {
                 event ^= EVENT_WRITABLE;
                 event |= EVENT_UPDATE;
                 return true;

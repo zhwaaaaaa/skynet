@@ -42,7 +42,7 @@ namespace sn {
         return dispatcher->AddChannelEvent(this, EVENT_READABLE);
     }
 
-    void Channel::OnEvent(int mask) {
+    int Channel::OnEvent(int mask) {
         if (mask & EVENT_CLOSE) {
             goto err;
         }
@@ -62,10 +62,11 @@ namespace sn {
         if (event & EVENT_UPDATE) {
             dispatcher->ModChannelEvent(this, event & EVENT_MASK);
         }
-        return;
+        return 0;
         err:
         dispatcher->DelChannelEvent(this);
         doClose();
+        return -1;
     }
 }
 

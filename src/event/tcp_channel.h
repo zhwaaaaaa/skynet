@@ -13,6 +13,8 @@ namespace sn {
     public:
         TcpChannel(int fd, ip_t ip, int port);
 
+        virtual ~TcpChannel();
+
         const EndPoint &remoteAddr() {
             return raddr;
         }
