@@ -11,7 +11,7 @@ int main() {
 
     EventDispatcher dispatcher(100);
 
-    SocketChannel sc("localhost", 9999);
+    SocketChannel sc("0.0.0.0", 9999);
 
     int i = sc.Init();
     if (i < 0) {

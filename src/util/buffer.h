@@ -62,7 +62,7 @@ namespace sn {
 
     public:
         explicit Buffer(const uint capacity) :
-                capacity(capacity), head(nullptr), wi(0) {
+                capacity(capacity), wi(0), head(nullptr), tail(nullptr) {
             buf = static_cast<char *>(malloc(capacity));
         }
 
