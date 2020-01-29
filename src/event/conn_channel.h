@@ -44,16 +44,15 @@ namespace sn {
             READING_HEAD,
             READING_BODY
         };
-    private:
+    protected:
         Buffer buf;
+    private:
         DECODE_STATUS decodeStatus;
         WriteEvt *headEvt;
         WriteEvt *tailEvt;
 
     public:
         explicit ConnChannel(int fd);
-
-        int Init() override;
 
         virtual int AddWriteEvt(writeFunc func, void *param) final;
 
@@ -64,7 +63,7 @@ namespace sn {
 
         void doClose() override;
 
-        int tryDecodeBuf();
+        virtual int tryDecodeBuf();
 
     private:
         int decodeHead(Segment<uint8_t> *head, Header *header);

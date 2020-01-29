@@ -100,11 +100,16 @@ namespace sn {
 // Get the other end of a socket connection
     int get_remote_side(int fd, EndPoint *out);
 
+    int set_tcp_no_delay(int fd, int val = 1);
+
+    int set_tcp_keep_alive(int fd);
+
+    int mark_non_block(int fd);
 
     // Create a TCP socket and connect it to `server'. Write port of this side
     // into `self_port' if it's not NULL.
     // Returns the socket descriptor, -1 otherwise and errno is set.
-    int tcp_connect(EndPoint server, int *self_port);
+    int tcp_connect(EndPoint point, EndPoint *localAddr);
 
     // Create and listen to a TCP socket bound with `ip_and_port'.
     // To enable SO_REUSEADDR for the whole program, enable gflag -reuse_addr

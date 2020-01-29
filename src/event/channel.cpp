@@ -3,23 +3,14 @@
 //
 
 #include "channel.h"
-#include <fcntl.h>
 
 namespace sn {
-    int markNonBlock(int fd) {
-        int opts;
-        opts = fcntl(fd, F_GETFL);
-        if (opts < 0) {
-            return -1;
-        }
-        opts = opts | O_NONBLOCK;
-        if (fcntl(fd, F_SETFL, opts) < 0) {
-            return -1;
-        }
-        return 0;
+    Channel::Channel() : fd(-1),
+                         dispatcher(nullptr),
+                         event(EVENT_NONE) {
     }
 
-    Channel::Channel() : fd(-1), dispatcher(nullptr), event(EVENT_NONE) {
+    Channel::Channel(int fd) : fd(fd), dispatcher(nullptr), event(EVENT_NONE) {
 
     }
 
@@ -68,5 +59,16 @@ namespace sn {
         doClose();
         return -1;
     }
+
+    int Channel::Init() {
+        if (fd >= 0) {
+            mark_non_block(fd);
+            set_tcp_keep_alive(fd);
+            set_tcp_no_delay(fd);
+        }
+        return 0;
+    }
+
+
 }
 

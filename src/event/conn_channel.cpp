@@ -12,27 +12,6 @@
 namespace sn {
     using namespace google;
 
-    static int setTcpNoDelay(int fd, int val) {
-        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1) {
-            return -1;
-        }
-        return 0;
-    }
-
-    static int setTcpKeepAlive(int fd) {
-        int yes = 1;
-        if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) == -1) {
-            return -1;
-        }
-        return 0;
-    }
-
-    int ConnChannel::Init() {
-        setTcpNoDelay(fd, 1);
-        setTcpKeepAlive(fd);
-        return 0;
-    }
-
     int ConnChannel::doRead() {
         size_t nbytes;
         ssize_t readed;
@@ -53,12 +32,9 @@ namespace sn {
             }
 
             buf.addWrited(readed);
-            if (decodeStatus == READING_HEAD) {
-                if (tryDecodeBuf() != 0) {
-                    return -1;
-                }
-            } else {
-
+//            if (decodeStatus == READING_HEAD) {
+            if (tryDecodeBuf() != 0) {
+                return -1;
             }
         } while (readed < nbytes);
         return 0;

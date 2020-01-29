@@ -8,7 +8,7 @@
 
 #include <zconf.h>
 #include "event_dispatcher.h"
-#include "endpoint.h"
+#include "util/endpoint.h"
 
 namespace sn {
 
@@ -24,9 +24,11 @@ namespace sn {
             return event;
         }
 
-        Channel();
+        explicit Channel();
 
-        virtual int Init()=0;
+        explicit Channel(int fd);
+
+        virtual int Init();
 
         virtual ~Channel();
 

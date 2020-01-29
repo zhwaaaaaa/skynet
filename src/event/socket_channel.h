@@ -16,14 +16,8 @@ namespace sn {
 
     class SocketChannel : public Channel {
     public:
-        explicit SocketChannel(int port) : host("0.0.0.0"), port(port), backlog(DEFAULT_BACKLOG) {
-        }
-
-        int Init() override;
-
-        explicit SocketChannel(const char *host, int port, int backlog = DEFAULT_BACKLOG) : host(host),
-                                                                                            port(port),
-                                                                                            backlog(backlog) {
+        explicit SocketChannel(EndPoint listenAddr,
+                               int fd) : Channel(fd), listenAddr(listenAddr) {
         }
 
     protected:
@@ -36,9 +30,7 @@ namespace sn {
 
 
     private:
-        int port;
-        std::string host;
-        int backlog;
+        EndPoint listenAddr;
     };
 }
 

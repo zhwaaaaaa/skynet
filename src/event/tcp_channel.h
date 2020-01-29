@@ -11,9 +11,11 @@
 namespace sn {
     class TcpChannel : public ConnChannel {
     public:
+        explicit TcpChannel(int fd);
         TcpChannel(int fd, ip_t ip, int port);
+        TcpChannel(int fd,const EndPoint &np);
 
-        virtual ~TcpChannel();
+        ~TcpChannel() override;
 
         const EndPoint &remoteAddr() {
             return raddr;

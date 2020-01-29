@@ -12,7 +12,18 @@ namespace sn {
 
     TcpChannel::~TcpChannel() {
         LOG(INFO) << raddr << " --> " << laddr << " TcpChannel stop";
+    }
 
+    TcpChannel::TcpChannel(int fd, const EndPoint &np)
+            : ConnChannel(fd), raddr(np) {
+        get_local_side(fd, &laddr);
+        LOG(INFO) << raddr << " --> " << laddr << " TcpChannel start";
+    }
+
+    TcpChannel::TcpChannel(int fd) : ConnChannel(fd) {
+        get_local_side(fd, &laddr);
+        get_remote_side(fd, &raddr);
+        LOG(INFO) << raddr << " --> " << laddr << " TcpChannel start";
     }
 }
 

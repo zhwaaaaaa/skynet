@@ -11,6 +11,8 @@
 #include <cstdlib>                            // strtol
 #include <gflags/gflags.h>
 #include <glog/logging.h>
+#include <fcntl.h>
+#include <netinet/tcp.h>
 #include "endpoint.h"                    // ip_t
 
 //supported since Linux 3.9.
@@ -28,6 +30,9 @@ namespace sn {
             if (rc > 0) {
                 return 0;
             }
+        } else {
+            *ip = IP_ANY;
+            return 0;
         }
         return -1;
     }
@@ -261,6 +266,34 @@ namespace sn {
         return 0;
     }
 
+    int set_tcp_no_delay(int fd, int val) {
+        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == -1) {
+            return -1;
+        }
+        return 0;
+    }
+
+    int set_tcp_keep_alive(int fd) {
+        int yes = 1;
+        if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) == -1) {
+            return -1;
+        }
+        return 0;
+    }
+
+
+    int mark_non_block(int fd) {
+        int opts;
+        opts = fcntl(fd, F_GETFL);
+        if (opts < 0) {
+            return -1;
+        }
+        opts = opts | O_NONBLOCK;
+        if (fcntl(fd, F_SETFL, opts) < 0) {
+            return -1;
+        }
+        return 0;
+    }
 
     int tcp_connect(EndPoint point, EndPoint *localAddr) {
         const int sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -276,7 +309,7 @@ namespace sn {
         if (rc < 0) {
             return -1;
         }
-        if (localAddr != NULL) {
+        if (localAddr != nullptr) {
             if (get_local_side(sockfd, localAddr) == 0) {
                 CHECK(false) << "Fail to get the local port of sockfd=" << sockfd;
             }

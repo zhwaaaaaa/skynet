@@ -20,6 +20,7 @@ namespace sn {
         Segment<NEW_LEN> *sub(LEN offset = 0) {
             return reinterpret_cast<Segment<NEW_LEN> *>(buf + offset);
         }
+
     };
 
     struct BufStr {
@@ -38,6 +39,32 @@ namespace sn {
     }
 }
 
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+//当系统为大端时，把face_code结构体中的以小端模式存储的数据转换为大端
+#define SEGMENT_LEN_64(segment) __builtin_bswap64((segment)->len)
+#define SEGMENT_LEN_32(segment) __builtin_bswap32((segment)->len)
+#define SEGMENT_LEN_16(segment) __builtin_bswap16((segment)->len)
+#define SEGMENT_LEN_8(segment) (segment)->len
+
+//================================================
+#define WRITELE_VAL_64(ptr, val) *reinterpret_cast<uint64_t *>(ptr)=__builtin_bswap64(val)
+#define WRITELE_VAL_32(ptr, val) *reinterpret_cast<uint32_t *>(ptr)=__builtin_bswap32(val)
+#define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=__builtin_bswap16(val)
+#define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=val
+
+#else //小端模式则什么也不做直接返回
+#define SEGMENT_LEN_64(segment) (segment)->len
+#define SEGMENT_LEN_32(segment) (segment)->len
+#define SEGMENT_LEN_16(segment) (segment)->len
+#define SEGMENT_LEN_8(segment) (segment)->len
+
+//================================================
+
+#define WRITELE_VAL_64(ptr, val) *reinterpret_cast<uint64_t *>(ptr)=val
+#define WRITELE_VAL_32(ptr, val) *reinterpret_cast<uint32_t *>(ptr)=val
+#define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=val
+#define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=val
+#endif
 
 namespace sn {
 
@@ -53,20 +80,21 @@ namespace sn {
     class Buffer {
     private:
     private:
-        const uint capacity;
-        uint wi;
+        const uint32_t capacity;
+        uint32_t wi;
         char *buf;
 
         SegmentRef *head;
         SegmentRef *tail;
 
     public:
-        explicit Buffer(const uint capacity) :
+        explicit Buffer(const uint32_t capacity) :
                 capacity(capacity), wi(0), head(nullptr), tail(nullptr) {
             buf = static_cast<char *>(malloc(capacity));
         }
 
-        Buffer(Buffer &&buffer) noexcept : capacity(buffer.capacity), buf(buffer.buf), head(buffer.head),
+        Buffer(Buffer &&buffer) noexcept : capacity(buffer.capacity),
+                                           buf(buffer.buf), head(buffer.head),
                                            tail(buffer.tail), wi(buffer.wi) {
             buffer.buf = nullptr;
             buffer.head = nullptr;
@@ -86,7 +114,7 @@ namespace sn {
             }
         }
 
-        uint canWriteSize() {
+        uint32_t canWriteSize() {
             return capacity - wi;
         }
 
@@ -98,8 +126,8 @@ namespace sn {
             return buf + wi;
         }
 
-        uint canReadSize() {
-            return static_cast<uint>((ulong) wi - (ulong) readPtr());
+        uint32_t canReadSize() {
+            return static_cast<uint32_t>( wi - static_cast<uint32_t>(readPtr() - buf));
         }
 
         template<typename T>
@@ -113,8 +141,9 @@ namespace sn {
 
         template<typename LEN>
         Segment<LEN> *segment(LEN len = 0) {
-            return reinterpret_cast<Segment<LEN> *>((tail ? tail->buf + tail->len : buf) - len);
+            return reinterpret_cast<Segment<LEN> *>((tail ? tail->buf + tail->len : buf) + len);
         }
+
     };
 }
 
