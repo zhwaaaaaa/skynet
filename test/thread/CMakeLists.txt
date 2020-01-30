@@ -1,0 +1,2 @@
+add_executable(test_thread thread_test.cpp)
+target_link_libraries(test_thread snThread)

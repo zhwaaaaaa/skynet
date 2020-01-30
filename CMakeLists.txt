@@ -24,6 +24,18 @@ set(SOURCE_FILES src/main.cpp
         src/util/endpoint.cpp
         src/util/endpoint.h
         src/util/HASH_MAP_HPP.h
+
         )
+
+set(THREAD_FILES
+        #thread
+        src/thread/thread.cpp
+        src/thread/thread.h)
+
+add_library(snThread ${THREAD_FILES})
+target_link_libraries(snThread glog gflags pthread)
+
 add_executable(skynet ${SOURCE_FILES})
-target_link_libraries(skynet glog gflags)
+target_link_libraries(skynet glog gflags snThread)
+
+add_subdirectory("test/thread")
