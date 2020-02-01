@@ -27,8 +27,6 @@ namespace sn {
     protected:
         int tryDecodeBuf() override;
 
-        void doClose() override;
-
     private:
         int readServicesAndConnect();
 

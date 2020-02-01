@@ -1,7 +1,7 @@
 // Wrappers of IP and port.
 
-#ifndef BUTIL_ENDPOINT_H
-#define BUTIL_ENDPOINT_H
+#ifndef SN_ENDPOINT_H
+#define SN_ENDPOINT_H
 
 #include <netinet/in.h>                          // in_addr
 #include <iostream>                              // std::ostream
@@ -189,4 +189,4 @@ namespace sn {
 
 }  // namespace sn
 
-#endif  // BUTIL_ENDPOINT_H
+#endif  // SN_ENDPOINT_H

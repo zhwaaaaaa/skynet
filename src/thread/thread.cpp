@@ -56,6 +56,10 @@ namespace sn {
 
     template<class _ThreadType = Thread>
     _ThreadType *Thread::current() {
+
+        static_assert(is_base_of<Thread, _ThreadType>::value || is_same<Thread, _ThreadType>::value,
+                      "必须是Thread或thread的子类");
+
         Thread *thread = localPtr<Thread>().get();
         if (thread) {
             return dynamic_cast<_ThreadType *>(thread);
@@ -86,8 +90,9 @@ namespace sn {
             }
         } else if (status == PROXY) {
             destroyAndInvokeCallback();
+        } else {
+            detach();
         }
-
     }
 
     void Thread::destroyAndInvokeCallback() {

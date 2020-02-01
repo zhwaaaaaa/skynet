@@ -2,7 +2,6 @@
 #include <event/event_dispatcher.h>
 #include <event/socket_channel.h>
 #include <util/buffer.h>
-#include <glog/logging.h>
 #include <registry/service_registry.h>
 
 using namespace sn;
@@ -35,7 +34,7 @@ int main() {
 
     createServiceRegistry(&dispatcher);
 
-    dispatcher.Select(-1);
+    dispatcher.RunLoop();
 
     return 0;
 }

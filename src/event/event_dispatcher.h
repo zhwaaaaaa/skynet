@@ -7,6 +7,9 @@
 
 #include <sys/epoll.h>
 #include <stdexcept>
+#include <thread/thread.h>
+#include <map>
+#include <util/func_time.h>
 
 #define MAX_EVENTS 100
 #define EVENT_NONE 0       /* No events registered. */
@@ -19,24 +22,57 @@
 namespace sn {
     class Channel;
 
+    class EventChannel;
+
+    using namespace std;
+
+#define DISPATCHER_INIT 0
+#define DISPATCHER_LOOP 1
+#define DISPATCHER_CLOSE 2
+
     class EventDispatcher {
+    private:
+
+        friend class EventChannel;
+
+        friend class Channel;
+
     private:
         int select_fd;
         epoll_event *events;
-    public:
-        explicit EventDispatcher(int maxEvt);
+        multimap<long, FuncWrap> timerMap;
+        EventChannel *eventChannel;
+        int status;
+
+        long invokeTimerAndGetNextTime();
 
         int Select(int time);
 
-        int AddChannelEvent(Channel *channel, int mask) const;
+        int AddChannelEvent(Channel *channel, int fd, int mask = EVENT_READABLE) const;
 
-        int ModChannelEvent(Channel *channel, int mask) const;
+        int ModChannelEvent(Channel *channel, int fd, int mask) const;
 
-        int DelChannelEvent(const Channel *channel) const;
+        int DelChannelEvent(int fd) const;
+
+    public:
+        explicit EventDispatcher(int maxEvt);
+
+        void RunLoop();
+
+        int addTimer(long timeout, ActionFunc func, void *param);
+
+        /**
+         * 除了这个函数以外，其他只允许本线程调用
+         * @return
+         */
+        int wakeUp();
+
+        void StopLoop();
 
         virtual ~EventDispatcher();
 
     };
+
 }
 
 

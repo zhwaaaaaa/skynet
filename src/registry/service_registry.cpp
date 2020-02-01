@@ -30,13 +30,13 @@ namespace sn {
                 map = new EndPointChannelMap;
             }
 
-            Channel *ch = new TcpChannel(fd, np);
+            TcpChannel *ch = new TcpChannel(fd, np);
             ch->Init();
             map->insert(make_pair(np, ch));
         }
         if (map) {
             this->connMap.insert(make_pair(serv, map));
-            namingServer->subscribe(serv, [](const auto &s, const auto &nps) {
+            namingServer->subscribe(serv, [](const string &s, const std::vector<EndPoint> &nps) -> int {
                 return 0;
             });
             return map->size();

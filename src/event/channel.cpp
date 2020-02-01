@@ -15,49 +15,56 @@ namespace sn {
     }
 
     Channel::~Channel() {
-        if (dispatcher) {
-            dispatcher->DelChannelEvent(this);
-            dispatcher = nullptr;
-        }
+        unregisterDispatcher();
+    }
+
+    void Channel::unregisterDispatcher(bool closeFd) {
         if (fd >= 0) {
-            close(fd);
-            fd = -1;
+            if (dispatcher) {
+                dispatcher->DelChannelEvent(fd);
+                dispatcher = nullptr;
+            }
+
+            if (closeFd) {
+                close(fd);
+                fd = -1;
+            }
+        }
+
+        if (dispatcher) {
+            dispatcher = nullptr;
         }
     }
 
-    int Channel::AddEventLoop(const EventDispatcher *dispatcher) {
+    int Channel::AddEventLoop(EventDispatcher *dispatcher) {
         if (fd < 0) {
             return -2;
         }
         this->dispatcher = dispatcher;
-        return dispatcher->AddChannelEvent(this, EVENT_READABLE);
+        return dispatcher->AddChannelEvent(this, fd);
     }
 
     int Channel::OnEvent(int mask) {
         if (mask & EVENT_CLOSE) {
-            goto err;
+            return -1;
         }
 
         if (mask & EVENT_READABLE) {
             if (doRead() != 0) {
-                goto err;
+                return -1;
             }
         }
 
         if (mask & EVENT_WRITABLE) {
             if (doWrite() != 0) {
-                goto err;
+                return -1;
             }
         }
 
         if (event & EVENT_UPDATE) {
-            dispatcher->ModChannelEvent(this, event & EVENT_MASK);
+            dispatcher->ModChannelEvent(this, fd, event & EVENT_MASK);
         }
         return 0;
-        err:
-        dispatcher->DelChannelEvent(this);
-        doClose();
-        return -1;
     }
 
     int Channel::Init() {

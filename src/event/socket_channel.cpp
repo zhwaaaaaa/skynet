@@ -12,10 +12,6 @@
 namespace sn {
     using namespace google;
 
-    void SocketChannel::doClose() {
-        close(fd);
-    }
-
     int SocketChannel::doRead() {
         sockaddr_storage sa = {0};
         socklen_t in_len = sizeof(in_addr);
@@ -41,10 +37,6 @@ namespace sn {
             }
             channel->AddEventLoop(dispatcher);
         }
-        return 0;
-    }
-
-    int SocketChannel::doWrite() {
         return 0;
     }
 

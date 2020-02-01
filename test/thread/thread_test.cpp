@@ -6,6 +6,8 @@
 
 void testCurrentThread();
 
+void testLocal(int initSize);
+
 using namespace sn;
 
 class MyThread : public Thread {
@@ -45,6 +47,39 @@ int main() {
     cout << endl << "======================================================" << endl << endl;
     testCommon();
     cout << endl << "======================================================" << endl << endl;
+
+    testLocal(100);
+
+
+}
+
+
+void testLocal(int initSize) {
+
+    Thread::local<int>(new int(initSize));
+    pthread_t pid;
+    pthread_create(&pid, nullptr, [](void *p) {
+        Thread::local<int>(new int(1000));
+        LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+        LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+        LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+        LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+        LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+        LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+        Thread::current()->addExitCallBack([](){
+            LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+            LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+        });
+        return p;
+    }, nullptr);
+    pthread_detach(pid);
+
+    LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+    LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+    LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+    LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+    LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
+    LOG(INFO) << "=====Thread::local<int>()" << ++Thread::local<int>();
 }
 
 void testCurrentThread() {

@@ -22,15 +22,15 @@ namespace sn {
 
     protected:
 
-        void doClose() override;
-
         int doRead() override;
-
-        int doWrite() override;
-
 
     private:
         EndPoint listenAddr;
+
+    public:
+        EndPoint ListenAddr() {
+            return listenAddr;
+        }
     };
 }
 

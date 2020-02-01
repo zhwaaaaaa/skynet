@@ -4,8 +4,6 @@
 
 #include <glog/logging.h>
 #include "shake_hands_channel.h"
-#include "tcp_channel.h"
-#include <memory>
 
 namespace sn {
 
@@ -90,19 +88,6 @@ namespace sn {
     }
 
 
-    void ShakeHandsChannel::doClose() {
-        if (status == 2) {
-            const auto channel = new TcpChannel(fd);
-            fd = -1;
-            dispatcher->DelChannelEvent(this);
-            dispatcher->AddChannelEvent(channel, EVENT_READABLE);
-            dispatcher = nullptr;
-        } else {
-            ConnChannel::doClose();
-        }
-    }
-
-
     Action ShakeHandsChannel::writeData(int s, ConnChannel *ch, void *param) {
         if (s != WRITE_ERR) {
             int writed = doWriteToFd();
@@ -135,6 +120,5 @@ namespace sn {
         }
         return 0;
     }
-
 
 }

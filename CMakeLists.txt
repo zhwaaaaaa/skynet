@@ -14,6 +14,10 @@ set(SOURCE_FILES src/main.cpp
         src/event/tcp_channel.h
         src/event/shake_hands_channel.cpp
         src/event/shake_hands_channel.h
+        src/event/server.h
+        src/event/server.cpp
+        src/event/reactor.h
+        src/event/reactor.cpp
         #registry
         src/registry/service_registry.cpp
         src/registry/service_registry.h
@@ -24,7 +28,8 @@ set(SOURCE_FILES src/main.cpp
         src/util/endpoint.cpp
         src/util/endpoint.h
         src/util/HASH_MAP_HPP.h
-
+        src/util/func_time.h
+        src/util/func_time.cpp
         )
 
 set(THREAD_FILES

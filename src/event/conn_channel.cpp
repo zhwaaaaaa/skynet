@@ -106,14 +106,6 @@ namespace sn {
         return r;
     }
 
-    void ConnChannel::doClose() {
-        close(fd);
-        fd = -1;
-        for (WriteEvt *evt = headEvt; evt; evt = deleteWriteEvtGetNext(evt)) {
-            evt->func(WRITE_ERR, this, evt->param);
-        }
-    }
-
     int ConnChannel::doWrite() {
         WriteEvt *evt;
         int ret = 0;

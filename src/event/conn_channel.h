@@ -61,8 +61,6 @@ namespace sn {
 
         int doWrite() override;
 
-        void doClose() override;
-
         virtual int tryDecodeBuf();
 
     private:

@@ -17,7 +17,7 @@ namespace sn {
         int event;
     protected:
         int fd;
-        const EventDispatcher *dispatcher;
+        EventDispatcher *dispatcher;
     public:
 
         int CurrentEvent() {
@@ -32,19 +32,19 @@ namespace sn {
 
         virtual ~Channel();
 
-        virtual int AddEventLoop(const EventDispatcher *dispatcher);
+        virtual int AddEventLoop(EventDispatcher *dispatcher);
 
         virtual int OnEvent(int evt) final;
 
-        friend class EventDispatcher;
-
     protected:
 
-        virtual void doClose()=0;
+        void unregisterDispatcher(bool closeFd = true);
 
         virtual int doRead()=0;
 
-        virtual int doWrite()=0;
+        virtual int doWrite() {
+            return 0;
+        }
 
         bool markRead() {
             if (event & EVENT_READABLE == 0) {
