@@ -8,6 +8,7 @@
 
 #include <glob.h>
 #include <cstdlib>
+#include <iostream>
 
 namespace sn {
 

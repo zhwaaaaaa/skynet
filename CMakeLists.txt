@@ -6,21 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(src src/event)
 
 set(SOURCE_FILES src/main.cpp
-        src/event/event_dispatcher.cpp
-        src/event/channel.cpp
-        src/event/socket_channel.cpp
-        src/event/conn_channel.cpp
-        src/event/tcp_channel.cpp
-        src/event/tcp_channel.h
-        src/event/shake_hands_channel.cpp
-        src/event/shake_hands_channel.h
-        src/event/server.h
-        src/event/server.cpp
         src/event/reactor.h
         src/event/reactor.cpp
         #registry
-        src/registry/service_registry.cpp
-        src/registry/service_registry.h
         src/registry/naming_server.h
         src/registry/naming_server.cpp
         #util
@@ -30,7 +18,16 @@ set(SOURCE_FILES src/main.cpp
         src/util/HASH_MAP_HPP.h
         src/util/func_time.h
         src/util/func_time.cpp
-        )
+        # new event
+        src/nevent/channel.cpp
+        src/nevent/channel.h
+        src/nevent/channel_handler.cpp
+        src/nevent/channel_handler.h
+        src/nevent/io_error.h
+        src/nevent/stream_channel.cpp
+        src/nevent/stream_channel.h
+        src/nevent/tcp_listener.cpp
+        src/nevent/tcp_listener.h)
 
 set(THREAD_FILES
         #thread
@@ -41,6 +38,6 @@ add_library(snThread ${THREAD_FILES})
 target_link_libraries(snThread glog gflags pthread)
 
 add_executable(skynet ${SOURCE_FILES})
-target_link_libraries(skynet glog gflags snThread)
+target_link_libraries(skynet glog gflags snThread uv)
 
 add_subdirectory("test/thread")

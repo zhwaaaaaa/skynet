@@ -55,6 +55,11 @@ namespace sn {
         }
 
         template<typename T>
+        static T *localRelease() {
+            return localPtr<T>().release();
+        }
+
+        template<typename T>
         static T &local() {
             return *localPtr<T>().get();
         }
@@ -96,7 +101,7 @@ namespace sn {
 
         Thread(Thread &&) = delete;
 
-        Thread &operator=(const Thread &)= delete;
+        Thread &operator=(const Thread &) = delete;
 
         template<class Thread = Thread>
         bool operator==(const Thread &other) {

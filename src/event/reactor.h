@@ -6,56 +6,47 @@
 #define SKYNET_REACTOR_H
 
 #include <thread/thread.h>
-#include "event_dispatcher.h"
 #include <queue>
 #include <util/func_time.h>
+#include <uv.h>
+#include <nevent/channel.h>
 
 namespace sn {
 
 
     class Reactor {
-    protected:
-
-        void callWakeUpFunc();
-
 
     private:
-        mutex funcLock;
-        queue<FuncWrap> funcQue;
+
+        static void runInThread(uv_work_t *req);
+
+        static void notifyStop(uv_async_t *handle);
+
+        void runLoop();
+
     protected:
+        uv_loop_t loop;
         Thread *thread;
-        EventDispatcher *dispatcher;
 
-    public:
+        virtual void onLoopStart() {
 
-        Reactor() : thread(nullptr), dispatcher(nullptr),
-                    funcLock(), funcQue() {
         }
 
+        virtual void onLoopStop() {
 
-        void addFuncAndWakeup(ActionFunc func, void *param) {
-            lock_guard g(funcLock);
-            funcQue.push({param, func});
-        }
-
-        virtual void Stop()=0;
-    };
-
-
-    class IoThread : Thread {
-    private:
-        EventDispatcher *dispatcher;
-    public:
-        explicit IoThread(EventDispatcher *dispatcher) : dispatcher(dispatcher) {
-            detach();
         }
 
     public:
+        Reactor();
 
-        void run() final {
-
-
+        void addLoopable(Loopable &loopable) {
+            loopable.addToLoop(&loop);
         }
+
+        void start(bool newThread = false);
+
+        void stop();
+
     };
 
 }
