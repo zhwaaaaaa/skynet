@@ -9,15 +9,11 @@
 
 using namespace sn;
 
-void testSk() {
+
+int main() {
     Client client;
     Thread::local<NamingServer>(new DemoNamingServer);
     ServiceKeeper sk(string("com.zhw.PrintService.print"));
-
-
-}
-
-int main() {
-    testSk();
-    uv_run(uv_default_loop(), UV_RUN_DEFAULT);
+    // 执行一次 close 的回调函数才会执行
+    uv_run(uv_default_loop(), UV_RUN_ONCE);
 }
