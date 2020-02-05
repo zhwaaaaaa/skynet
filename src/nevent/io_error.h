@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <ostream>
+#include <uv.h>
 
 namespace sn {
     using namespace std;
@@ -22,7 +23,7 @@ namespace sn {
     };
 
     inline ostream &operator<<(ostream &out, const IoError &e) {
-        return out << e.what() << ":" << uv_err_name(e.code);
+        return out << "IoError " << e.what() << ":" << uv_err_name(e.code);
     }
 }
 

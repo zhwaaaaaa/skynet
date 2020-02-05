@@ -23,7 +23,9 @@ using std::hash_set;
 #include <ext/hash_map>
 #include <ext/hash_set>
 
-namespace __gnu_cxx {
+#define SN_HASH_NAMESPACE __gnu_cxx
+
+namespace SN_HASH_NAMESPACE {
     template<>
     struct hash<std::string> {
         size_t operator()(const std::string &s) const {
@@ -36,9 +38,12 @@ namespace __gnu_cxx {
 
     };
 }
-using __gnu_cxx::hash_map;
-using __gnu_cxx::hash;
+using SN_HASH_NAMESPACE::hash_map;
+using SN_HASH_NAMESPACE::hash;
+using SN_HASH_NAMESPACE::hash_set;
 #else // GCC 2.x
+#define SN_HASH_NAMESPACE std
+
 #include <hash_map>
 #include <hash_set>
 namespace std {
@@ -57,6 +62,7 @@ using std::hash;
 #endif // end GCC >= 3
 #elif defined(_MSC_VER) && ((_MSC_VER >= 1300) || defined(__INTEL_COMPILER))
 // we only support MSVC7+ and Intel C++ 8.0
+#define SN_HASH_NAMESPACE stdext
 #include <hash_map>
 #include <hash_set>
         namespace stdext {

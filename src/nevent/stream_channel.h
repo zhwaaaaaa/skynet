@@ -13,37 +13,21 @@
 
 namespace sn {
 
-#if defined(_WIN32)
-    static thread_local uint32_t _id=0;
-#else
-    static thread_local uint8_t _id_mask;
-#endif
+    static thread_local uint32_t _id = 0;
 
     template<class Type>
     class WritableChannel : public Channel {
     private:
-#if defined(_WIN32)
-        uint32_t id=0;
-#else
-        uint8_t id_high;
-#endif
+        uint32_t id = 0;
     protected:
         Type handle;
     public:
         WritableChannel() {
-#if defined(_WIN32)
-            id=_id++;
-#else
-            id_high = _id_mask++;
-#endif
+            id = _id++;
         }
 
         uint32_t channelId() override {
-#if defined(_WIN32)
             return id;
-#else
-            return (id_high << 24) | handle.io_watcher.fd;
-#endif
         }
 
         virtual void writeMsg(SegmentRef *ref) {
@@ -69,7 +53,7 @@ namespace sn {
                 free(req);
                 return;
             }
-            TcpChannel<Handler> *ch = req->data;
+            TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(req->data);
             auto pHandler = new Handler(ch);
             uv_stream_t *stream = req->handle;
             stream->data = pHandler;
@@ -89,6 +73,11 @@ namespace sn {
         void connectTo(EndPoint endPoint) {
             raddr = endPoint;
 
+            if (!handle.loop) {
+                // lib_uv 每一个结构必须有一个loop
+                addToLoop(uv_default_loop());
+            }
+
             uv_connect_t *conType = static_cast<uv_connect_t *>(malloc(sizeof(uv_connect_t)));
             conType->data = this;
             struct sockaddr_in serv_addr;
@@ -97,8 +86,17 @@ namespace sn {
             serv_addr.sin_addr = endPoint.ip;
             serv_addr.sin_port = htons(static_cast<uint16_t>(endPoint.port));
             int r;
-            if ((r = uv_tcp_connect(conType, &handle, (sockaddr *) &serv_addr, TcpChannel<Handler>::onConnected))) {
-                throw IoError(r, "connection");
+
+            struct sockaddr_in client_addr;
+            if ((r = uv_ip4_addr("0.0.0.0", 0, &client_addr))) {
+                throw IoError(r, "Init local addr");
+            }
+            if ((r = uv_tcp_bind(&handle, (sockaddr *) &client_addr, 0))) {
+                throw IoError(r, "Bind");
+            }
+
+            if ((r = uv_tcp_connect(conType, &handle, (sockaddr *) &serv_addr, onConnected))) {
+                throw IoError(r, "Connection");
             }
         }
 
@@ -127,6 +125,7 @@ namespace sn {
         };
 
     };
+
 }
 
 

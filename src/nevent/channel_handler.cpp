@@ -61,4 +61,22 @@ namespace sn {
 
     }
 
+    ClientTransferHandler::ClientTransferHandler(Channel *ch) : ChannelHandler(ch) {
+    }
+
+    void ClientTransferHandler::onMemoryRequired(size_t suggested_size, uv_buf_t *buf) {
+
+    }
+
+    int ClientTransferHandler::onMessage(const uv_buf_t *buf, ssize_t nread) {
+        return 0;
+    }
+
+    void ClientTransferHandler::onClose(const uv_buf_t *buf) {
+    }
+
+    void ClientTransferHandler::onError(const uv_buf_t *buf) {
+    }
+
+
 }

@@ -20,7 +20,7 @@ namespace sn {
         uint32_t len;
     };
 
-    class Channel : Loopable {
+    class Channel : public Loopable {
     public:
         virtual uint32_t channelId() = 0;
 

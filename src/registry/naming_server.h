@@ -16,32 +16,34 @@ namespace sn {
     using namespace __gnu_cxx;
 
 
-    typedef int (*SubscribeFunc)(const string &, const vector<EndPoint> &);
+    typedef void (*SubscribeFunc)(const string &, const vector<EndPoint> &, bool hashNext, void *param);
 
     class NamingServer {
     public:
         virtual ~NamingServer() = default;
 
-        virtual const vector<EndPoint> find(const string &serviceName)=0;
+        virtual void subscribe(const string &serviceName, SubscribeFunc func, void *param) = 0;
 
-        virtual int subscribe(const string &serviceName, SubscribeFunc func) =0;
-
-        virtual int unsubscribe(const string &serviceName)=0;
+        virtual void unsubscribe(const string &serviceName) = 0;
 
     };
 
 
     class DemoNamingServer : public NamingServer {
+    private:
+
+        struct FuncWithParam {
+            SubscribeFunc func;
+            void *param;
+        };
 
     private:
-        hash_map<string, SubscribeFunc> subscribeMap;
+        hash_map<string, FuncWithParam> subscribeMap;
 
     public:
-        const vector<EndPoint> find(const string &serviceName) override;
+        void subscribe(const string &serviceName, SubscribeFunc func, void *param) override;
 
-        int subscribe(const string &serviceName, SubscribeFunc fun) override;
-
-        int unsubscribe(const string &serviceName) override;
+        void unsubscribe(const string &serviceName) override;
     };
 }
 
