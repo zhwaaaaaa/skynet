@@ -6,17 +6,18 @@
 #define SKYNET_CHANNEL_HANDLER_H
 
 #include "channel.h"
+#include <util/byte_buf.h>
+#include <bits/shared_ptr.h>
 
 namespace sn {
+    using namespace std;
 
 
     class ChannelHandler {
     protected:
-        Channel *const ch;
+        const shared_ptr<Channel> ch;
     public:
-        ChannelHandler(Channel *ch);
-
-        virtual ~ChannelHandler();
+        ChannelHandler(shared_ptr<Channel> ch);
 
         static void onChannelClosed(uv_handle_t *handle);
 
@@ -36,11 +37,24 @@ namespace sn {
 
     };
 
-    class ClientAppHandler : public ChannelHandler {
-    public:
-        explicit ClientAppHandler(Channel *ch);
 
+    class ClientAppHandler : public ChannelHandler {
     private:
+        ByteBuf byteBuf;
+        Buffer *lastReadBuffer;
+        size_t readedOffset;
+        size_t decodeOffset;
+        bool valid;
+        uint readedBytes;
+        uint requireBytes;
+        // ===
+        int packageLen;
+        uint32_t readedPkg;
+    public:
+        explicit ClientAppHandler(const shared_ptr<Channel> &ch);
+
+
+    protected:
         void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;
 
         int onMessage(const uv_buf_t *buf, ssize_t nread) override;
@@ -48,11 +62,14 @@ namespace sn {
         void onClose(const uv_buf_t *buf) override;
 
         void onError(const uv_buf_t *buf) override;
+
+    private:
+
     };
 
     class ClientTransferHandler : public ChannelHandler {
     public:
-        explicit ClientTransferHandler(Channel *ch);
+        explicit ClientTransferHandler(shared_ptr<Channel> &ch);
 
     private:
         void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;

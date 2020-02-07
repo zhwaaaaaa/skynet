@@ -10,37 +10,275 @@
 #include "channel.h"
 #include "io_error.h"
 #include "channel_handler.h"
+#include <vector>
+#include <queue>
+
 
 namespace sn {
 
-    static thread_local uint32_t _id = 0;
+    struct WriteEvent {
+        uint32_t dataLen;
+        uint32_t bufferOffset;
+        Buffer *buffer;
+    };
+
+
+    using WriteEventQueue = std::queue<WriteEvent, std::vector<WriteEvent>>;
+
+    static thread_local uint32_t _id;
 
     template<class Type>
     class WritableChannel : public Channel {
+
     private:
-        uint32_t id = 0;
+        const uint32_t id;
+        WriteEventQueue writingQue;
+        // 16个字节就不做链表了
+        WriteEventQueue waitingWrite;
+        bool closed;
+    private:
+        static void onWritingCompleted(uv_write_t *req, int status) {
+            WritableChannel<Type> *thisWriteCh = static_cast< WritableChannel<Type> *>(req->data);
+            auto &writingQue = thisWriteCh->writingQue;
+            // 不管对错，先把正在写的回收掉
+            while (!writingQue.empty()) {
+                const auto &evt = writingQue.front();
+                recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                writingQue.pop();
+            }
+            if (status) {
+                thisWriteCh->close();
+            } else {
+                thisWriteCh->writeNextWaitingEvent();
+            }
+
+        }
+
     protected:
         Type handle;
+        uv_write_t wrHandle;
     public:
-        WritableChannel() {
-            id = _id++;
+        WritableChannel() : writingQue(), waitingWrite(), closed(false), id(_id++) {
+            wrHandle.data = this;
         }
 
         uint32_t channelId() override {
             return id;
         }
 
-        virtual void writeMsg(SegmentRef *ref) {
+
+        static void recycleWrited(Buffer *buffer, uint32_t firstOffset, uint32_t writed,
+                                  uint32_t *unwritedOffset = nullptr, Buffer **unwritedBuffer = nullptr) {
+            int writeLen = BUFFER_BUF_LEN - firstOffset;
+            Buffer *tmp = buffer;
+            Buffer *next = tmp->next;
+            while (writed > writeLen) {
+                assert(next);
+                if (--tmp->refCount) {
+                    ByteBuf::recycleSingle(tmp);
+                }
+                tmp = next;
+                writeLen += BUFFER_BUF_LEN;
+                next = tmp->next;
+            }
+
+            // 两个相等还有最后一个没回收
+            if (writed == writeLen) {
+                if (unwritedOffset) {
+                    *unwritedOffset = 0;
+                }
+                if (unwritedBuffer) {
+                    *unwritedBuffer = next;
+                }
+                if (--tmp->refCount) {
+                    ByteBuf::recycleSingle(tmp);
+                }
+            } else {
+                if (unwritedOffset) {
+                    *unwritedOffset = BUFFER_BUF_LEN - (writeLen - writed);
+                }
+                if (unwritedBuffer) {
+                    *unwritedBuffer = tmp;
+                }
+            }
+
         }
 
-        virtual void startWrite() {
+        /**
+         * 返回
+         * @param buffer 数据buffer链表头
+         * @param firstOffset 数据链表头第一个buffer偏移量
+         * @param len 数据长度
+         * @return >= 0 写成功、 UV_EOF 出错但是buffer还没被污染可自行处理， 其它错误，buffer已经被回收掉了
+         */
+        int writeMsg(Buffer *buffer, uint32_t firstOffset, uint32_t len) override {
+            if (closed) {
+                // recycleWrited(buffer, firstOffset, len);
+                return UV_EOF;
+            }
+
+            int writed = 0;
+
+            // tryWrite 不能写过多数据。因为缓冲区写满了就无法再写了.208K
+            if (writingQue.empty() && len < 212992) {
+                if (len <= BUFFER_BUF_LEN - firstOffset) {
+                    uv_buf_t buf = {buffer->buf + firstOffset, len};
+                    writed = uv_try_write((uv_stream_t *) &handle, &buf, 0);
+                } else {
+                    auto exceptFirst = len - (BUFFER_BUF_LEN - firstOffset);
+                    auto tailLen = exceptFirst % BUFFER_BUF_LEN;
+                    uint32_t bufSize = exceptFirst / BUFFER_BUF_LEN + (tailLen == 0 ? 1 : 2);
+
+                    uv_buf_t buf[bufSize];
+
+                    Buffer *tmp = buffer;
+                    buf[0] = {tmp->buf + firstOffset, BUFFER_BUF_LEN - firstOffset};
+
+                    for (int i = 1; i < bufSize - 1; ++i) {
+                        tmp = tmp->next;
+                        buf[i].len = BUFFER_BUF_LEN;
+                        buf[i].base = buffer->buf;
+                    }
+
+                    tmp = tmp->next;
+                    buf[bufSize - 1] = {tmp->buf, tailLen};
+                    writed = uv_try_write((uv_stream_t *) &handle, buf, bufSize);
+                }
+
+
+                if (writed == UV_EAGAIN) {
+                    // 到这里的概率很小.
+                    writed = 0;
+                } else if (writed < 0) {
+                    LOG(ERROR) << " Write error on " << channelId() << ":" << uv_err_name(writed);
+                    close();
+                    // 返回eof调用者还可以找另一个channel重发或自行处理
+                    return UV_EOF;
+                } else {
+                    recycleWrited(buffer, firstOffset, writed, &firstOffset, &buffer);
+                    len -= writed;
+                }
+            }
+
+            if (len) {
+                if (!writingQue.empty()) {
+                    waitingWrite.push({len, firstOffset, buffer});
+                    return writed;
+                }
+
+                int status = writeAsync(buffer, firstOffset, len);
+                if (status) {
+                    if (!writed) {
+                        // 如果之前没有写入操作,返回一个错误，这个buffer还可以重新找一个管道写出去。
+                        return UV_EOF;
+                    } else {
+                        recycleWrited(buffer, firstOffset, len);
+                        close();
+                        return UV_EBADF;
+                    }
+
+                }
+            }
+
+            return writed;
         }
 
         void close() override {
-            uv_close((uv_handle_t *) &handle, ChannelHandler::onChannelClosed);
+            if (!closed) {
+                closed = true;
+
+                while (!writingQue.empty()) {
+                    const auto &evt = writingQue.front();
+                    recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                    writingQue.pop();
+                }
+
+                while (!waitingWrite.empty()) {
+                    const auto &evt = waitingWrite.front();
+                    recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                    waitingWrite.pop();
+                }
+
+                uv_close((uv_handle_t *) &handle, ChannelHandler::onChannelClosed);
+            }
+
         }
 
+    private:
+        void writeNextWaitingEvent() {
+            auto size = waitingWrite.size();
+            if (!size) {
+                return;
+            }
 
+            std::vector<uv_buf_t> wes(size);
+
+            for (const WriteEvent &evt: waitingWrite) {
+                if (evt.dataLen <= BUFFER_BUF_LEN - evt.bufferOffset) {
+                    wes.push_back({evt.buffer->buf + evt.bufferOffset, evt.dataLen});
+                } else {
+                    auto exceptFirst = evt.dataLen - (BUFFER_BUF_LEN - evt.bufferOffset);
+                    auto tailLen = exceptFirst % BUFFER_BUF_LEN;
+                    uint32_t bufSize = exceptFirst / BUFFER_BUF_LEN + (tailLen == 0 ? 1 : 2);
+
+                    Buffer *tmp = evt.buffer;
+                    wes.push_back({tmp->buf + evt.bufferOffset, BUFFER_BUF_LEN - evt.bufferOffset});
+
+                    for (int i = 1; i < bufSize - 1; ++i) {
+                        tmp = tmp->next;
+                        wes.push_back({evt.buffer->buf, BUFFER_BUF_LEN});
+                    }
+
+                    tmp = tmp->next;
+                    wes.push_back({tmp->buf, tailLen});
+                }
+            }
+
+            int status;
+            if (!(status = uv_write(&wrHandle, (uv_stream_t *) &handle, wes.data(), wes.size(), onWritingCompleted))) {
+                while (!waitingWrite.empty()) {
+                    writingQue.push(waitingWrite.front());
+                    waitingWrite.pop();
+                }
+            } else {
+                LOG(ERROR) << "Error Write:" << uv_err_name(status);
+                close();
+            }
+        }
+
+        int writeAsync(Buffer *buffer, uint32_t firstOffset, uint32_t len) {
+
+            int status;
+            if (len <= BUFFER_BUF_LEN - firstOffset) {
+                uv_buf_t buf = {buffer->buf + firstOffset, len};
+                status = uv_write(&wrHandle, (uv_stream_t *) &handle, &buf, 0, onWritingCompleted);
+            } else {
+                auto exceptFirst = len - (BUFFER_BUF_LEN - firstOffset);
+                auto tailLen = exceptFirst % BUFFER_BUF_LEN;
+                uint32_t bufSize = exceptFirst / BUFFER_BUF_LEN + (tailLen == 0 ? 1 : 2);
+
+                uv_buf_t buf[bufSize];
+
+                Buffer *tmp = buffer;
+                buf[0] = {tmp->buf + firstOffset, BUFFER_BUF_LEN - firstOffset};
+
+                for (int i = 1; i < bufSize - 1; ++i) {
+                    tmp = tmp->next;
+                    buf[i].len = BUFFER_BUF_LEN;
+                    buf[i].base = buffer->buf;
+                }
+
+                tmp = tmp->next;
+                buf[bufSize - 1] = {tmp->buf, tailLen};
+                status = uv_write(&wrHandle, (uv_stream_t *) &handle, buf, bufSize, onWritingCompleted);
+            }
+
+            if (!status) {
+                writingQue.push({len, firstOffset, buffer});
+            }
+
+            return status;
+        }
     };
 
     template<class Handler>

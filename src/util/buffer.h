@@ -65,7 +65,10 @@ namespace sn {
 #define WRITELE_VAL_32(ptr, val) *reinterpret_cast<uint32_t *>(ptr)=val
 #define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=val
 #define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=val
+
+#define READ_VAL_64(fPtr, fLen, sPtr)
 #endif
+
 
 namespace sn {
 
@@ -78,75 +81,24 @@ namespace sn {
     };
     static thread_local SegmentRef *cache;// thread local
 
-    class Buffer {
-    private:
-    private:
-        const uint32_t capacity;
-        uint32_t wi;
-        char *buf;
-
-        SegmentRef *head;
-        SegmentRef *tail;
-
-    public:
-        explicit Buffer(const uint32_t capacity) :
-                capacity(capacity), wi(0), head(nullptr), tail(nullptr) {
-            buf = static_cast<char *>(malloc(capacity));
-        }
-
-        Buffer(Buffer &&buffer) noexcept : capacity(buffer.capacity),
-                                           buf(buffer.buf), head(buffer.head),
-                                           tail(buffer.tail), wi(buffer.wi) {
-            buffer.buf = nullptr;
-            buffer.head = nullptr;
-            buffer.tail = nullptr;
-        }
-
-        ~Buffer() {
-            if (buf) {
-                free(buf);
-                buf = nullptr;
-            }
-            if (head) {
-                head->prev = cache;
-                cache = tail;
-                head = nullptr;
-                tail = nullptr;
-            }
-        }
-
-        uint32_t canWriteSize() {
-            return capacity - wi;
-        }
-
-        char *readPtr() {
-            return tail ? tail->buf + tail->len : buf;
-        }
-
-        char *writePtr() {
-            return buf + wi;
-        }
-
-        uint32_t canReadSize() {
-            return static_cast<uint32_t>( wi - static_cast<uint32_t>(readPtr() - buf));
-        }
-
-        template<typename T>
-        T readUint() const {
-            return *reinterpret_cast<T *>(tail ? tail->buf + tail->len : buf);
-        }
-
-        void addWrited(int w) {
-            wi += w;
-        }
-
-        template<typename LEN>
-        Segment<LEN> *segment(LEN len = 0) {
-            return reinterpret_cast<Segment<LEN> *>((tail ? tail->buf + tail->len : buf) + len);
-        }
-
+    struct Buffer {
+        int refCount;
+        Buffer *next;
+        char buf[];
     };
-}
 
+
+}
+#define BUFFER_PAD offsetof(Buffer, buf)
+
+#define BUF_TO_BUFFER(ch) reinterpret_cast<Buffer *>(ch - BUFFER_PAD)
+
+#define BUFFER_SIZE 65536
+
+#define BUFFER_BUF_LEN (BUFFER_SIZE-BUFFER_PAD)
+
+#define BUFFER_LEN_FIRST(buffer) ((buffer)->split?(buffer)->split:BUFFER_BUF_LEN)
+#define BUFFER_LEN_SECOND(buffer) (BUFFER_BUF_LEN-(buffer)->split)
+#define BUFFER_BUF_SECOND(buffer) ((buffer)->buf+(buffer)->split)
 
 #endif //MESHER_BUFFER_H

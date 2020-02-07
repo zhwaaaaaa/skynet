@@ -5,6 +5,8 @@
 #include "channel_handler.h"
 #include <glog/logging.h>
 
+#include <utility>
+
 namespace sn {
     void ChannelHandler::onChannelClosed(uv_handle_t *handle) {
         ChannelHandler *handler = static_cast<ChannelHandler *>(handle->data);
@@ -28,40 +30,46 @@ namespace sn {
         } else {
             handler->onError(buf);
         }
-
-        handler->ch->close();
     }
 
-    ChannelHandler::ChannelHandler(Channel *ch) : ch(ch) {}
+    ChannelHandler::ChannelHandler(shared_ptr<Channel> ch) : ch(std::move(ch)) {}
 
-    ChannelHandler::~ChannelHandler() {
-        delete ch;
+
+    ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch)
+            : ChannelHandler(ch), valid(false), readedBytes(0), requireBytes(0), lastReadBuffer(nullptr),
+              readedOffset(0), decodeOffset(0) {
     }
 
-    ClientAppHandler::ClientAppHandler(Channel *ch) : ChannelHandler(ch) {
-    }
-
-    void ClientAppHandler::onMemoryRequired(size_t suggested_size, uv_buf_t *buf) {
-        LOG(INFO) << ch->channelId() << " ClientAppHandler::onMemoryRequired suggested_size:" << suggested_size;
-        buf->base = static_cast<char *>(malloc(suggested_size));
-        buf->len = suggested_size;
+    void ClientAppHandler::onMemoryRequired(size_t, uv_buf_t *buf) {
+        if (readedOffset) {
+            buf->len = BUFFER_BUF_LEN - readedOffset;
+            buf->base = lastReadBuffer->buf + readedOffset;
+        } else {
+            auto buffer = byteBuf.alloc();
+            buf->base = buffer->buf;
+            buf->len = BUFFER_BUF_LEN;
+        }
     }
 
     int ClientAppHandler::onMessage(const uv_buf_t *buf, ssize_t nread) {
-        LOG(INFO) << ch->channelId() << " ClientAppHandler::onMessage nread:" << nread;
+        if (packageLen) {
+
+        }
+
+
         return 0;
     }
 
     void ClientAppHandler::onClose(const uv_buf_t *buf) {
-        LOG(INFO) << ch->channelId() << " ClientAppHandler::onClose";
+        LOG(INFO) << ch.get()->channelId() << " ClientAppHandler::onClose";
     }
 
     void ClientAppHandler::onError(const uv_buf_t *buf) {
-        LOG(INFO) << ch->channelId() << " ClientAppHandler::onError";
+        LOG(INFO) << ch.get()->channelId() << " ClientAppHandler::onError";
 
     }
 
-    ClientTransferHandler::ClientTransferHandler(Channel *ch) : ChannelHandler(ch) {
+    ClientTransferHandler::ClientTransferHandler(shared_ptr<Channel> &ch) : ChannelHandler(ch) {
     }
 
     void ClientTransferHandler::onMemoryRequired(size_t suggested_size, uv_buf_t *buf) {

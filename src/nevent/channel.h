@@ -24,6 +24,8 @@ namespace sn {
     public:
         virtual uint32_t channelId() = 0;
 
+        virtual int writeMsg(Buffer *buffer, uint32_t firstOffset, uint32_t len) = 0;
+
         virtual void close() = 0;
 
         virtual ~Channel() = default;
