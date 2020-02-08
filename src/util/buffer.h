@@ -10,10 +10,18 @@
 #include <cstdlib>
 #include <iostream>
 
+#if defined(__GNUC__)
+#define PACK_STRUCT_START struct __attribute__((__packed__))
+#define PACK_STRUCT_END ;
+#else
+#define PACK_STRUCT_START #pragma pack(push, _packed, 1)
+#define PACK_STRUCT_END ; #pragma pack(pop, _packed)
+#endif
+
 namespace sn {
 
     template<typename LEN>
-    struct __attribute__ ((__packed__)) Segment {
+    PACK_STRUCT_START Segment {
         const LEN len;
         char buf[];
 
@@ -22,7 +30,11 @@ namespace sn {
             return reinterpret_cast<Segment<NEW_LEN> *>(buf + offset);
         }
 
-    };
+        template<typename T>
+        T *last() {
+            return reinterpret_cast<T *>(buf + len);
+        }
+    }PACK_STRUCT_END
 
     struct BufStr {
         uint len;

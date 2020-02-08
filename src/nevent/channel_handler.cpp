@@ -8,6 +8,8 @@
 #include <utility>
 
 namespace sn {
+    ChannelHandler::ChannelHandler(shared_ptr<Channel> ch) : ch(std::move(ch)) {}
+
     void ChannelHandler::onChannelClosed(uv_handle_t *handle) {
         ChannelHandler *handler = static_cast<ChannelHandler *>(handle->data);
         delete handler;
@@ -32,41 +34,6 @@ namespace sn {
         }
     }
 
-    ChannelHandler::ChannelHandler(shared_ptr<Channel> ch) : ch(std::move(ch)) {}
-
-    ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch)
-            : ChannelHandler(ch), valid(false), readedBytes(0), requireBytes(0), lastReadBuffer(nullptr),
-              readedOffset(0), decodeOffset(0) {
-    }
-
-    void ClientAppHandler::onMemoryRequired(size_t, uv_buf_t *buf) {
-        if (readedOffset) {
-            buf->len = BUFFER_BUF_LEN - readedOffset;
-            buf->base = lastReadBuffer->buf + readedOffset;
-        } else {
-            auto buffer = ByteBuf::alloc();
-            buf->base = buffer->buf;
-            buf->len = BUFFER_BUF_LEN;
-        }
-    }
-
-    int ClientAppHandler::onMessage(const uv_buf_t *buf, ssize_t nread) {
-        if (packageLen) {
-
-        }
-
-
-        return 0;
-    }
-
-    void ClientAppHandler::onClose(const uv_buf_t *buf) {
-        LOG(INFO) << ch.get()->channelId() << " ClientAppHandler::onClose";
-    }
-
-    void ClientAppHandler::onError(const uv_buf_t *buf) {
-        LOG(INFO) << ch.get()->channelId() << " ClientAppHandler::onError";
-
-    }
 
     ClientTransferHandler::ClientTransferHandler(const shared_ptr<Channel> &ch) : ChannelHandler(ch) {
     }

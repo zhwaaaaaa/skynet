@@ -25,6 +25,9 @@ namespace sn {
 
         static void onMessageArrived(uv_stream_t *stream, ssize_t nread, const uv_buf_t *buf);
 
+    public:
+        virtual ~ChannelHandler() = default;
+
 
     protected:
         virtual void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) = 0;
@@ -37,35 +40,6 @@ namespace sn {
 
     };
 
-
-    class ClientAppHandler : public ChannelHandler {
-    private:
-        ByteBuf byteBuf;
-        Buffer *lastReadBuffer;
-        size_t readedOffset;
-        size_t decodeOffset;
-        bool valid;
-        uint readedBytes;
-        uint requireBytes;
-        // ===
-        int packageLen;
-        uint32_t readedPkg;
-    public:
-        explicit ClientAppHandler(const shared_ptr<Channel> &ch);
-
-
-    protected:
-        void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;
-
-        int onMessage(const uv_buf_t *buf, ssize_t nread) override;
-
-        void onClose(const uv_buf_t *buf) override;
-
-        void onError(const uv_buf_t *buf) override;
-
-    private:
-
-    };
 
     class ClientTransferHandler : public ChannelHandler {
     public:

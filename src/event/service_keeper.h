@@ -33,6 +33,7 @@ namespace sn {
 
         void care(uint32_t channelId);
 
+
         Channel *get();
 
         int count() {

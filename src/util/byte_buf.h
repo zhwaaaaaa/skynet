@@ -42,7 +42,7 @@ namespace sn {
                 buffer = static_cast<Buffer *>(malloc(BUFFER_SIZE));
             }
             buffer->next = nullptr;
-            buffer->refCount = 0;
+            buffer->refCount = 1;
             buffer->next = nullptr;
             return buffer;
         }
