@@ -7,17 +7,17 @@
 
 #include "channel.h"
 #include <util/byte_buf.h>
-#include <bits/shared_ptr.h>
+#include <memory>
 
 namespace sn {
     using namespace std;
-
+    using ChannelPtr = std::shared_ptr<Channel>;
 
     class ChannelHandler {
     protected:
-        const shared_ptr<Channel> ch;
+        const ChannelPtr ch;
     public:
-        ChannelHandler(shared_ptr<Channel> ch);
+        explicit ChannelHandler(shared_ptr<Channel> ch);
 
         static void onChannelClosed(uv_handle_t *handle);
 
@@ -69,7 +69,7 @@ namespace sn {
 
     class ClientTransferHandler : public ChannelHandler {
     public:
-        explicit ClientTransferHandler(shared_ptr<Channel> &ch);
+        explicit ClientTransferHandler(const shared_ptr<Channel> &ch);
 
     private:
         void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;

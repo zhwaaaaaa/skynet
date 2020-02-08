@@ -7,14 +7,15 @@
 
 
 #include "channel_handler.h"
-#include <bits/shared_ptr.h>
+#include <memory>
 
 namespace sn {
+
 
     class TransferHandler : public ChannelHandler {
     private:
         size_t headerLen;
-        std::shared_ptr<Channel> outCh;
+        ChannelPtr outCh;
         Buffer *lastReadBuffer;
         size_t bufferUsed;
     public:

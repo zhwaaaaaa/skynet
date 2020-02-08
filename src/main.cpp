@@ -1,4 +1,3 @@
-#include <iostream>
 #include <event/reactor.h>
 #include <nevent/tcp_listener.h>
 

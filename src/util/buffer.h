@@ -2,8 +2,8 @@
 // Created by dear on 20-1-26.
 //
 
-#ifndef MESHER_BUFFER_H
-#define MESHER_BUFFER_H
+#ifndef SKYNET_BUFFER_H
+#define SKYNET_BUFFER_H
 
 
 #include <glob.h>
@@ -87,18 +87,13 @@ namespace sn {
         char buf[];
     };
 
+    constexpr unsigned int BUFFER_PAD = offsetof(Buffer, buf);
+    constexpr unsigned int BUFFER_SIZE = 65536;
+    constexpr unsigned int BUFFER_BUF_LEN(BUFFER_SIZE - BUFFER_PAD);
 
 }
-#define BUFFER_PAD offsetof(Buffer, buf)
 
 #define BUF_TO_BUFFER(ch) reinterpret_cast<Buffer *>(ch - BUFFER_PAD)
 
-#define BUFFER_SIZE 65536
-
-#define BUFFER_BUF_LEN (BUFFER_SIZE-BUFFER_PAD)
-
-#define BUFFER_LEN_FIRST(buffer) ((buffer)->split?(buffer)->split:BUFFER_BUF_LEN)
-#define BUFFER_LEN_SECOND(buffer) (BUFFER_BUF_LEN-(buffer)->split)
-#define BUFFER_BUF_SECOND(buffer) ((buffer)->buf+(buffer)->split)
 
 #endif //MESHER_BUFFER_H

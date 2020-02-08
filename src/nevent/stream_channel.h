@@ -23,9 +23,9 @@ namespace sn {
     };
 
 
-    using WriteEventQueue = std::queue<WriteEvent, std::vector<WriteEvent>>;
+    using WriteEventQueue = std::deque<WriteEvent>;
 
-    static thread_local uint32_t _id;
+    uint32_t generateChannelId();
 
     template<class Type>
     class WritableChannel : public Channel {
@@ -44,7 +44,7 @@ namespace sn {
             while (!writingQue.empty()) {
                 const auto &evt = writingQue.front();
                 recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
-                writingQue.pop();
+                writingQue.pop_front();
             }
             if (status) {
                 thisWriteCh->close();
@@ -58,7 +58,7 @@ namespace sn {
         Type handle;
         uv_write_t wrHandle;
     public:
-        WritableChannel() : writingQue(), waitingWrite(), closed(false), id(_id++) {
+        WritableChannel() : writingQue(), waitingWrite(), closed(false), id(generateChannelId()) {
             wrHandle.data = this;
         }
 
@@ -162,7 +162,7 @@ namespace sn {
 
             if (len) {
                 if (!writingQue.empty()) {
-                    waitingWrite.push({len, firstOffset, buffer});
+                    waitingWrite.push_back({len, firstOffset, buffer});
                     return writed;
                 }
 
@@ -190,13 +190,13 @@ namespace sn {
                 while (!writingQue.empty()) {
                     const auto &evt = writingQue.front();
                     recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
-                    writingQue.pop();
+                    writingQue.pop_front();
                 }
 
                 while (!waitingWrite.empty()) {
                     const auto &evt = waitingWrite.front();
                     recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
-                    waitingWrite.pop();
+                    waitingWrite.pop_front();
                 }
 
                 uv_close((uv_handle_t *) &handle, ChannelHandler::onChannelClosed);
@@ -237,8 +237,8 @@ namespace sn {
             int status;
             if (!(status = uv_write(&wrHandle, (uv_stream_t *) &handle, wes.data(), wes.size(), onWritingCompleted))) {
                 while (!waitingWrite.empty()) {
-                    writingQue.push(waitingWrite.front());
-                    waitingWrite.pop();
+                    writingQue.push_back(waitingWrite.front());
+                    waitingWrite.pop_front();
                 }
             } else {
                 LOG(ERROR) << "Error Write:" << uv_err_name(status);
@@ -274,7 +274,7 @@ namespace sn {
             }
 
             if (!status) {
-                writingQue.push({len, firstOffset, buffer});
+                writingQue.push_back({len, firstOffset, buffer});
             }
 
             return status;
@@ -292,7 +292,7 @@ namespace sn {
                 return;
             }
             TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(req->data);
-            auto pHandler = new Handler(ch);
+            auto pHandler = new Handler(shared_ptr<TcpChannel<Handler>>(ch));
             uv_stream_t *stream = req->handle;
             stream->data = pHandler;
             uv_read_start(stream, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
@@ -340,7 +340,6 @@ namespace sn {
 
         void acceptFrom(uv_stream_t *server) {
             addToLoop(server->loop);
-
             int r;
             uv_stream_t *client = (uv_stream_t *) &handle;
             if ((r = uv_accept(server, client))) {
@@ -358,7 +357,7 @@ namespace sn {
             sockaddr_in *in = reinterpret_cast<sockaddr_in *>(&storage);
             raddr = EndPoint(*in);
             LOG(INFO) << "Accept connection from " << raddr;
-            handle.data = new Handler(this);
+            handle.data = new Handler(shared_ptr<TcpChannel<Handler>>(this));
             uv_read_start(client, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
         };
 

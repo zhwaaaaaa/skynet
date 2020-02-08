@@ -34,7 +34,6 @@ namespace sn {
 
     ChannelHandler::ChannelHandler(shared_ptr<Channel> ch) : ch(std::move(ch)) {}
 
-
     ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch)
             : ChannelHandler(ch), valid(false), readedBytes(0), requireBytes(0), lastReadBuffer(nullptr),
               readedOffset(0), decodeOffset(0) {
@@ -45,7 +44,7 @@ namespace sn {
             buf->len = BUFFER_BUF_LEN - readedOffset;
             buf->base = lastReadBuffer->buf + readedOffset;
         } else {
-            auto buffer = byteBuf.alloc();
+            auto buffer = ByteBuf::alloc();
             buf->base = buffer->buf;
             buf->len = BUFFER_BUF_LEN;
         }
@@ -69,7 +68,7 @@ namespace sn {
 
     }
 
-    ClientTransferHandler::ClientTransferHandler(shared_ptr<Channel> &ch) : ChannelHandler(ch) {
+    ClientTransferHandler::ClientTransferHandler(const shared_ptr<Channel> &ch) : ChannelHandler(ch) {
     }
 
     void ClientTransferHandler::onMemoryRequired(size_t suggested_size, uv_buf_t *buf) {
@@ -85,6 +84,5 @@ namespace sn {
 
     void ClientTransferHandler::onError(const uv_buf_t *buf) {
     }
-
 
 }

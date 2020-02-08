@@ -5,7 +5,6 @@
 #include "byte_buf.h"
 
 namespace sn {
-
-
+    thread_local BufferPool ByteBuf::pool;
 }
 

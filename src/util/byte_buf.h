@@ -42,8 +42,8 @@ namespace sn {
                 buffer = static_cast<Buffer *>(malloc(BUFFER_SIZE));
             }
             buffer->next = nullptr;
-            buffer->split = 0;
             buffer->refCount = 0;
+            buffer->next = nullptr;
             return buffer;
         }
 
@@ -78,6 +78,7 @@ namespace sn {
         }
 
     };
+
 }
 
 
