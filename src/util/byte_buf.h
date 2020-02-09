@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <uv-unix.h>
+#include <cassert>
 #include "buffer.h"
 
 namespace sn {
@@ -45,6 +46,43 @@ namespace sn {
             buffer->refCount = 1;
             buffer->next = nullptr;
             return buffer;
+        }
+
+        static void recycleWrited(Buffer *buffer, uint32_t firstOffset, uint32_t writed,
+                                  uint32_t *unwritedOffset = nullptr, Buffer **unwritedBuffer = nullptr) {
+            int writeLen = BUFFER_BUF_LEN - firstOffset;
+            Buffer *tmp = buffer;
+            Buffer *next = tmp->next;
+            while (writed > writeLen) {
+                assert(next);
+                if (--tmp->refCount) {
+                    ByteBuf::recycleSingle(tmp);
+                }
+                tmp = next;
+                writeLen += BUFFER_BUF_LEN;
+                next = tmp->next;
+            }
+
+            // 两个相等还有最后一个没回收
+            if (writed == writeLen) {
+                if (unwritedOffset) {
+                    *unwritedOffset = 0;
+                }
+                if (unwritedBuffer) {
+                    *unwritedBuffer = next;
+                }
+                if (--tmp->refCount) {
+                    ByteBuf::recycleSingle(tmp);
+                }
+            } else {
+                if (unwritedOffset) {
+                    *unwritedOffset = BUFFER_BUF_LEN - (writeLen - writed);
+                }
+                if (unwritedBuffer) {
+                    *unwritedBuffer = tmp;
+                }
+            }
+
         }
 
         static void recycle(uv_buf_t *buf) {

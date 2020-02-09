@@ -65,6 +65,12 @@ namespace sn {
 #define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=__builtin_bswap16(val)
 #define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=val
 
+//=======================================================
+#define CONVERT_VAL_64(val) __builtin_bswap64(val)
+#define CONVERT_VAL_32(val) __builtin_bswap31(val)
+#define CONVERT_VAL_16(val) __builtin_bswap16(val)
+#define CONVERT_VAL_8(val) val
+
 #else //小端模式则什么也不做直接返回
 #define SEGMENT_LEN_64(segment) (segment)->len
 #define SEGMENT_LEN_32(segment) (segment)->len
@@ -78,7 +84,10 @@ namespace sn {
 #define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=val
 #define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=val
 
-#define READ_VAL_64(fPtr, fLen, sPtr)
+#define CONVERT_VAL_64(val) (val)
+#define CONVERT_VAL_32(val) (val)
+#define CONVERT_VAL_16(val) (val)
+#define CONVERT_VAL_8(val)  (val)
 #endif
 
 

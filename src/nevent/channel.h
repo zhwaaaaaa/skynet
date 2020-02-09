@@ -24,6 +24,13 @@ namespace sn {
     public:
         virtual uint32_t channelId() = 0;
 
+        /**
+         * 返回
+         * @param buffer 数据buffer链表头
+         * @param firstOffset 数据链表头第一个buffer偏移量
+         * @param len 数据长度
+         * @return >= 0 写成功、 -1 出错但是buffer还没被污染可自行处理， <-1 buffer已经被回收掉了
+         */
         virtual int writeMsg(Buffer *buffer, uint32_t firstOffset, uint32_t len) = 0;
 
         virtual void close() = 0;

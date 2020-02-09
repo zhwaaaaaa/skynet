@@ -5,6 +5,7 @@
 #ifndef SKYNET_TRANSFER_HANDLER_H
 #define SKYNET_TRANSFER_HANDLER_H
 
+#include <event/service_keeper.h>
 #include "channel_handler.h"
 
 namespace sn {
@@ -16,7 +17,7 @@ namespace sn {
 
     constexpr const uint MAX_SERVICE_LEN = 238;
 
-    PACK_STRUCT_START HeaderId {
+    PACK_STRUCT_START RequestId {
         // ServiceName service;
         // ==========================================
         uint32_t requestId;
@@ -26,8 +27,25 @@ namespace sn {
         uint32_t bodyLen;
     }PACK_STRUCT_END
 
-    constexpr const uint REQ_HEADER_LEN = sizeof(HeaderId);//17 [4:requestId][4:clientId][4:serverId][1:bodyType][4:bodyLen]
-    class TransferHandler : public ChannelHandler {
+    PACK_STRUCT_START ResponseId {
+        uint8_t headerLen;
+        uint32_t requestId;
+        uint32_t clientId;
+        uint32_t serverId;
+        uint8_t responseCode;
+        uint8_t bodyType;
+        uint32_t bodyLen;
+        char data[];
+    }PACK_STRUCT_END
+
+    constexpr const uint8_t SKYNET_ERR_TRANSFER = 80;
+    constexpr const uint8_t SKYNET_ERR_NO_SERVICE = 81;
+    constexpr const uint8_t BODY_TYPE_STRING = 20;
+
+
+    constexpr const uint REQ_HEADER_LEN = sizeof(RequestId);//17 [4:requestId][4:clientId][4:serverId][1:bodyType][4:bodyLen]
+
+    class RequestHandler : public ChannelHandler {
     private:
         uint32_t firstBufferOffset;
         uint32_t lastBufferUsed;
@@ -39,7 +57,7 @@ namespace sn {
         //buffer
         char tmpHead[256];// 用着256个字节来解决header粘包问题
     public:
-        explicit TransferHandler(const shared_ptr<Channel> &ch);
+        explicit RequestHandler(const shared_ptr<Channel> &ch);
 
     protected:
         void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;
@@ -50,9 +68,9 @@ namespace sn {
 
         void onError(const uv_buf_t *buf) override;
 
-        virtual Channel *findOutCh(ServiceNamePtr serviceName) = 0;
+        virtual ServiceKeeper* findOutCh(ServiceNamePtr serviceName) = 0;
 
-        virtual Channel *setResponseChannelId(Header *header) = 0;
+        virtual void setResponseChannelId(RequestId *header) = 0;
 
     };
 

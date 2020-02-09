@@ -66,55 +66,17 @@ namespace sn {
             return id;
         }
 
-
-        static void recycleWrited(Buffer *buffer, uint32_t firstOffset, uint32_t writed,
-                                  uint32_t *unwritedOffset = nullptr, Buffer **unwritedBuffer = nullptr) {
-            int writeLen = BUFFER_BUF_LEN - firstOffset;
-            Buffer *tmp = buffer;
-            Buffer *next = tmp->next;
-            while (writed > writeLen) {
-                assert(next);
-                if (--tmp->refCount) {
-                    ByteBuf::recycleSingle(tmp);
-                }
-                tmp = next;
-                writeLen += BUFFER_BUF_LEN;
-                next = tmp->next;
-            }
-
-            // 两个相等还有最后一个没回收
-            if (writed == writeLen) {
-                if (unwritedOffset) {
-                    *unwritedOffset = 0;
-                }
-                if (unwritedBuffer) {
-                    *unwritedBuffer = next;
-                }
-                if (--tmp->refCount) {
-                    ByteBuf::recycleSingle(tmp);
-                }
-            } else {
-                if (unwritedOffset) {
-                    *unwritedOffset = BUFFER_BUF_LEN - (writeLen - writed);
-                }
-                if (unwritedBuffer) {
-                    *unwritedBuffer = tmp;
-                }
-            }
-
-        }
-
         /**
          * 返回
          * @param buffer 数据buffer链表头
          * @param firstOffset 数据链表头第一个buffer偏移量
          * @param len 数据长度
-         * @return >= 0 写成功、 UV_EOF 出错但是buffer还没被污染可自行处理， 其它错误，buffer已经被回收掉了
+         * @return >= 0 写成功、 -1 出错但是buffer还没被污染可自行处理， <-1 buffer已经被回收掉了
          */
         int writeMsg(Buffer *buffer, uint32_t firstOffset, uint32_t len) override {
             if (closed) {
                 // recycleWrited(buffer, firstOffset, len);
-                return UV_EOF;
+                return -1;
             }
 
             int writed = 0;
@@ -153,9 +115,9 @@ namespace sn {
                     LOG(ERROR) << " Write error on " << channelId() << ":" << uv_err_name(writed);
                     close();
                     // 返回eof调用者还可以找另一个channel重发或自行处理
-                    return UV_EOF;
+                    return -1;
                 } else {
-                    recycleWrited(buffer, firstOffset, writed, &firstOffset, &buffer);
+                    ByteBuf::recycleWrited(buffer, firstOffset, writed, &firstOffset, &buffer);
                     len -= writed;
                 }
             }
@@ -170,11 +132,11 @@ namespace sn {
                 if (status) {
                     if (!writed) {
                         // 如果之前没有写入操作,返回一个错误，这个buffer还可以重新找一个管道写出去。
-                        return UV_EOF;
+                        return -1;
                     } else {
-                        recycleWrited(buffer, firstOffset, len);
+                        ByteBuf::recycleWrited(buffer, firstOffset, len);
                         close();
-                        return UV_EBADF;
+                        return -2;
                     }
 
                 }
