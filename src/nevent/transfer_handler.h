@@ -68,40 +68,34 @@ namespace sn {
 
         void onError(const uv_buf_t *buf) override;
 
-        virtual ServiceKeeper* findOutCh(ServiceNamePtr serviceName) = 0;
+        virtual ServiceKeeper *findOutCh(ServiceNamePtr serviceName) = 0;
 
         virtual void setResponseChannelId(RequestId *header) = 0;
 
     };
 
 
-    class ClientAppHandler : public ChannelHandler {
+    class ClientAppHandler : public RequestHandler {
     private:
-        ByteBuf byteBuf;
-        Buffer *lastReadBuffer;
-        size_t readedOffset;
-        size_t decodeOffset;
         bool valid;
-        uint readedBytes;
-        uint requireBytes;
-        // ===
-        int packageLen;
-        uint32_t readedPkg;
     public:
         explicit ClientAppHandler(const shared_ptr<Channel> &ch);
 
-
     protected:
-        void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;
+        ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;
 
-        int onMessage(const uv_buf_t *buf, ssize_t nread) override;
+        void setResponseChannelId(RequestId *header) override;
 
-        void onClose(const uv_buf_t *buf) override;
+    };
 
-        void onError(const uv_buf_t *buf) override;
+    class ServerAppHandler : public RequestHandler {
+    public:
+        explicit ServerAppHandler(const shared_ptr<Channel> &ch);
 
     private:
+        ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;
 
+        void setResponseChannelId(RequestId *header) override;
     };
 
 

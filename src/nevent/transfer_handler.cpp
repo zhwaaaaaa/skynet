@@ -4,6 +4,8 @@
 
 #include "transfer_handler.h"
 #include <glog/logging.h>
+#include <thread/thread.h>
+#include <event/client.h>
 
 namespace sn {
 
@@ -195,34 +197,25 @@ namespace sn {
         ch->close();
     }
 
-
-    ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch)
-            : ChannelHandler(ch), valid(false), readedBytes(0), requireBytes(0), lastReadBuffer(nullptr),
-              readedOffset(0), decodeOffset(0) {
+    ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch), valid(false) {
     }
 
-    void ClientAppHandler::onMemoryRequired(size_t, uv_buf_t *buf) {
-        if (readedOffset) {
-            buf->len = BUFFER_BUF_LEN - readedOffset;
-            buf->base = lastReadBuffer->buf + readedOffset;
-        } else {
-            auto buffer = ByteBuf::alloc();
-            buf->base = buffer->buf;
-            buf->len = BUFFER_BUF_LEN;
-        }
+    ServiceKeeper *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {
+        return Thread::local<Client>().getByService();
     }
 
-    int ClientAppHandler::onMessage(const uv_buf_t *buf, ssize_t nread) {
-
-        return 0;
+    void ClientAppHandler::setResponseChannelId(RequestId *header) {
+        header->clientId = ch->channelId();
     }
 
-    void ClientAppHandler::onClose(const uv_buf_t *buf) {
-        LOG(INFO) << ch.get()->channelId() << " ClientAppHandler::onClose";
+    ServerAppHandler::ServerAppHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {}
+
+    ServiceKeeper *ServerAppHandler::findOutCh(ServiceNamePtr serviceName) {
+        return nullptr;
     }
 
-    void ClientAppHandler::onError(const uv_buf_t *buf) {
-        LOG(INFO) << ch.get()->channelId() << " ClientAppHandler::onError";
+    void ServerAppHandler::setResponseChannelId(RequestId *header) {
+        header->serverId = ch->channelId();
     }
 
 }
