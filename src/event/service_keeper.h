@@ -14,8 +14,7 @@ namespace sn {
     using namespace std;
 
     class ServiceKeeper {
-    private:
-        static void onNamingServerNotify(const string_view &, const vector<EndPoint> &, bool hashNext, void *param);
+
 
     private:
         const string_view serv;

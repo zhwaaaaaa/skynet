@@ -11,20 +11,9 @@
 #include <nevent/stream_channel.h>
 
 namespace sn {
-    using namespace std;
 
-    void ServiceKeeper::onNamingServerNotify(const string_view &serv, const vector<EndPoint> &eps,
-                                             bool hashNext, void *param) {
-        ServiceKeeper *thisSk = static_cast<ServiceKeeper *>(param);
-        if (!hashNext) {
-            return;
-        }
-        thisSk->servChanged(eps);
-    }
 
-    ServiceKeeper::ServiceKeeper(const string_view &serv) : serv(serv) {
-        Thread::local<NamingServer>().subscribe(serv, onNamingServerNotify, this);
-    }
+    ServiceKeeper::ServiceKeeper(const string_view &serv) : serv(serv) {}
 
     ServiceKeeper::~ServiceKeeper() {
         Thread::local<NamingServer>().unsubscribe(serv);
@@ -54,7 +43,7 @@ namespace sn {
         for (const EndPoint ep: eps) {
             if (chMap.find(ep) == chMap.end()) {
                 // 不存在，新增的。
-                auto pChannel = new TcpChannel<ClientTransferHandler>;
+                auto pChannel = new TcpChannel<ClientReqHandler>;
                 try {
 //                    Thread::local<Reactor>().addLoopable(*pChannel);
                     pChannel->connectTo(ep);

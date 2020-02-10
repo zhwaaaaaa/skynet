@@ -41,20 +41,6 @@ namespace sn {
     };
 
 
-    class ClientTransferHandler : public ChannelHandler {
-    public:
-        explicit ClientTransferHandler(const shared_ptr<Channel> &ch);
-
-    private:
-        void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;
-
-        int onMessage(const uv_buf_t *buf, ssize_t nread) override;
-
-        void onClose(const uv_buf_t *buf) override;
-
-        void onError(const uv_buf_t *buf) override;
-    };
-
 }
 
 

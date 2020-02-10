@@ -76,8 +76,6 @@ namespace sn {
 
 
     class ClientAppHandler : public RequestHandler {
-    private:
-        bool valid;
     public:
         explicit ClientAppHandler(const shared_ptr<Channel> &ch);
 
