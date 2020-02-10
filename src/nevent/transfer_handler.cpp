@@ -28,6 +28,9 @@ namespace sn {
             }
         } else {
             assert(!firstReadBuffer);
+            if (!lastReadBuffer) { // first will hit
+                lastReadBuffer = ByteBuf::alloc();
+            }
             // 包已经解析完了。并且这个包也已经快满了，没有必要重用了。
             if (lastBufferUsed + 256 > BUFFER_BUF_LEN) {
                 lastReadBuffer = ByteBuf::alloc();
@@ -207,6 +210,7 @@ namespace sn {
     void ClientAppHandler::setResponseChannelId(RequestId *header) {
         header->clientId = ch->channelId();
     }
+
 
     ServerReqHandler::ServerReqHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {}
 

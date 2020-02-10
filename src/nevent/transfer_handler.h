@@ -82,11 +82,13 @@ namespace sn {
         explicit ClientAppHandler(const shared_ptr<Channel> &ch);
 
     protected:
+
         ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;
 
         void setResponseChannelId(RequestId *header) override;
 
     };
+
 
     class ServerReqHandler : public RequestHandler {
     public:

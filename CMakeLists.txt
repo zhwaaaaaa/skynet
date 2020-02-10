@@ -8,6 +8,12 @@ include_directories(src src/event)
 set(SOURCE_FILES
         src/event/reactor.h
         src/event/reactor.cpp
+        src/event/client.cpp
+        src/event/client.h
+        src/event/service_keeper.cpp
+        src/event/service_keeper.h
+        src/event/channel_keeper.cpp
+        src/event/channel_keeper.h
         #registry
         src/registry/naming_server.h
         src/registry/naming_server.cpp
@@ -32,12 +38,10 @@ set(SOURCE_FILES
         src/nevent/stream_channel.h
         src/nevent/tcp_listener.cpp
         src/nevent/tcp_listener.h
-        src/event/client.cpp
-        src/event/client.h
-        src/event/service_keeper.cpp
-        src/event/service_keeper.h
         src/nevent/transfer_handler.cpp
-        src/nevent/transfer_handler.h src/event/channel_keeper.cpp src/event/channel_keeper.h)
+        src/nevent/transfer_handler.h
+        src/nevent/shake_hands_handler.cpp
+        src/nevent/shake_hands_handler.h)
 
 set(THREAD_FILES
         #thread

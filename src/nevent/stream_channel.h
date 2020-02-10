@@ -43,7 +43,7 @@ namespace sn {
             // 不管对错，先把正在写的回收掉
             while (!writingQue.empty()) {
                 const auto &evt = writingQue.front();
-                recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                ByteBuf::recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
                 writingQue.pop_front();
             }
             if (status) {
@@ -64,6 +64,12 @@ namespace sn {
 
         uint32_t channelId() override {
             return id;
+        }
+
+        ChannelHandler *replaceHandler(ChannelHandler *handler) override {
+            ChannelHandler *old = static_cast<ChannelHandler *>(handle.data);
+            handle.data = handler;
+            return old;
         }
 
         /**
@@ -151,13 +157,13 @@ namespace sn {
 
                 while (!writingQue.empty()) {
                     const auto &evt = writingQue.front();
-                    recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                    ByteBuf::recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
                     writingQue.pop_front();
                 }
 
                 while (!waitingWrite.empty()) {
                     const auto &evt = waitingWrite.front();
-                    recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                    ByteBuf::recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
                     waitingWrite.pop_front();
                 }
 
@@ -262,6 +268,14 @@ namespace sn {
 
     public:
 
+        ~TcpChannel() override {
+            LOG(INFO) << "~TcpChannel()";
+        }
+
+        TcpChannel() {
+            LOG(INFO) << "TcpChannel()";
+        }
+
         EndPoint remoteAddr() {
             return raddr;
         }
@@ -298,6 +312,8 @@ namespace sn {
             if ((r = uv_tcp_connect(conType, &handle, (sockaddr *) &serv_addr, onConnected))) {
                 throw IoError(r, "Connection");
             }
+            uv_tcp_keepalive(&handle, 1, 3600);
+            uv_tcp_nodelay(&handle, 1);
         }
 
         void acceptFrom(uv_stream_t *server) {
@@ -320,6 +336,8 @@ namespace sn {
             raddr = EndPoint(*in);
             LOG(INFO) << "Accept connection from " << raddr;
             handle.data = new Handler(shared_ptr<TcpChannel<Handler>>(this));
+            uv_tcp_keepalive(&handle, 1, 3600);
+            uv_tcp_nodelay(&handle, 1);
             uv_read_start(client, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
         };
 

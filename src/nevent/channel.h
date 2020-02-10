@@ -20,9 +20,13 @@ namespace sn {
         uint32_t len;
     };
 
+    class ChannelHandler;
+
     class Channel : public Loopable {
     public:
         virtual uint32_t channelId() = 0;
+
+        virtual ChannelHandler *replaceHandler(ChannelHandler *handler) = 0;
 
         /**
          * 返回
