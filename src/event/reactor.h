@@ -47,6 +47,9 @@ namespace sn {
 
         void stop();
 
+        Channel *getRemoteChannel(const EndPoint endPoint);
+        Channel *removeChannel(const EndPoint endPoint);
+
     };
 
 }

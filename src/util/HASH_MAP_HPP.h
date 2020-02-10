@@ -6,7 +6,10 @@
 #define SKYNET_HASH_MAP_HPP_H
 
 #include <string>
-
+// Definition in butil/third_party/superfasthash/superfasthash.c. (Third-party
+// code did not come with its own header file, so declaring the function here.)
+// Note: This algorithm is also in Blink under Source/wtf/StringHasher.h.
+extern "C" uint32_t SuperFastHash(const char *data, int len);
 
 #if defined(_STLPORT_VERSION)
 #include <hash_map>
@@ -25,19 +28,6 @@ using std::hash_set;
 
 #define SN_HASH_NAMESPACE __gnu_cxx
 
-namespace SN_HASH_NAMESPACE {
-    template<>
-    struct hash<std::string> {
-        size_t operator()(const std::string &s) const {
-            unsigned long __h = 0;
-            for (unsigned i = 0; i < s.size(); ++i)
-                __h ^= ((__h << 5) + (__h >> 2) + s[i]);
-            return size_t(__h);
-
-        }
-
-    };
-}
 using SN_HASH_NAMESPACE::hash_map;
 using SN_HASH_NAMESPACE::hash;
 using SN_HASH_NAMESPACE::hash_set;
@@ -79,4 +69,24 @@ using std::hash;
 #error unknown compiler
 #endif //GCC or MSVC7+
 #endif // end STLPORT
+
+namespace SN_HASH_NAMESPACE {
+    template<>
+    struct hash<std::string> {
+        size_t operator()(const std::string &s) const {
+            return ::SuperFastHash(s.data(), s.length());
+        }
+
+    };
+}
+namespace SN_HASH_NAMESPACE {
+    template<>
+    struct hash<std::string_view> {
+        size_t operator()(const std::string_view &s) const {
+            return ::SuperFastHash(s.data(), s.length());
+        }
+
+    };
+}
 #endif //SKYNET_HASH_MAP_HPP_H
+

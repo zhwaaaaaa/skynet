@@ -13,7 +13,7 @@
 namespace sn {
     using namespace std;
 
-    void ServiceKeeper::onNamingServerNotify(const string &serv, const vector<EndPoint> &eps,
+    void ServiceKeeper::onNamingServerNotify(const string_view &serv, const vector<EndPoint> &eps,
                                              bool hashNext, void *param) {
         ServiceKeeper *thisSk = static_cast<ServiceKeeper *>(param);
         if (!hashNext) {
@@ -22,7 +22,7 @@ namespace sn {
         thisSk->servChanged(eps);
     }
 
-    ServiceKeeper::ServiceKeeper(const string &serv) : serv(serv) {
+    ServiceKeeper::ServiceKeeper(const string_view &serv) : serv(serv) {
         Thread::local<NamingServer>().subscribe(serv, onNamingServerNotify, this);
     }
 
@@ -70,17 +70,13 @@ namespace sn {
         currentEps.insert(currentEps.end(), eps.begin(), eps.end());
     }
 
-    void ServiceKeeper::care(uint32_t channelId) {
-        careCh.insert(channelId);
-    }
 
-    Channel *ServiceKeeper::get() {
+    Channel *ServiceKeeper::getChannel() {
         auto len = currentEps.size();
         if (!len) {
             // no connected channel
             return nullptr;
         }
-
         auto iterator = chMap.find(currentEps[lastIndex++ % len]);
         assert(iterator != chMap.end());
         return iterator->second;

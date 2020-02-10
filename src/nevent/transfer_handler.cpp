@@ -138,7 +138,7 @@ namespace sn {
                 if (serviceKeeper) {
                     auto serviceSize = serviceKeeper->count();
                     for (int i = 0; i < serviceSize; ++i) {
-                        status = serviceKeeper->get()->writeMsg(firstReadBuffer, firstBufferOffset, packageLen);
+                        status = serviceKeeper->getChannel()->writeMsg(firstReadBuffer, firstBufferOffset, packageLen);
                         if (status != -1) {
                             break;
                         }
@@ -201,20 +201,20 @@ namespace sn {
     }
 
     ServiceKeeper *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {
-        return Thread::local<Client>().getByService();
+        return Thread::local<Client>().getByService(serviceName);
     }
 
     void ClientAppHandler::setResponseChannelId(RequestId *header) {
         header->clientId = ch->channelId();
     }
 
-    ServerAppHandler::ServerAppHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {}
+    ServerReqHandler::ServerReqHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {}
 
-    ServiceKeeper *ServerAppHandler::findOutCh(ServiceNamePtr serviceName) {
+    ServiceKeeper *ServerReqHandler::findOutCh(ServiceNamePtr serviceName) {
         return nullptr;
     }
 
-    void ServerAppHandler::setResponseChannelId(RequestId *header) {
+    void ServerReqHandler::setResponseChannelId(RequestId *header) {
         header->serverId = ch->channelId();
     }
 

@@ -88,9 +88,9 @@ namespace sn {
 
     };
 
-    class ServerAppHandler : public RequestHandler {
+    class ServerReqHandler : public RequestHandler {
     public:
-        explicit ServerAppHandler(const shared_ptr<Channel> &ch);
+        explicit ServerReqHandler(const shared_ptr<Channel> &ch);
 
     private:
         ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;

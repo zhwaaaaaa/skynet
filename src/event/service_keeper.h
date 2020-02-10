@@ -15,26 +15,36 @@ namespace sn {
 
     class ServiceKeeper {
     private:
-        static void onNamingServerNotify(const string &, const vector<EndPoint> &, bool hashNext, void *param);
+        static void onNamingServerNotify(const string_view &, const vector<EndPoint> &, bool hashNext, void *param);
 
     private:
-        const string serv;
+        const string_view serv;
         hash_set<uint32_t> careCh;
         hash_map<EndPoint, Channel *> chMap;
         vector<EndPoint> currentEps;
         uint32_t lastIndex;
 
     public:
-        explicit ServiceKeeper(const string &serv);
+        explicit ServiceKeeper(const string_view &serv);
 
         ~ServiceKeeper();
 
         void servChanged(const vector<EndPoint> &eps);
 
-        void care(uint32_t channelId);
+        void care(uint32_t channelId) {
+            careCh.insert(channelId);
+        }
 
+        bool noCare(uint32_t channelId) {
+            auto iterator = careCh.find(channelId);
+            if (iterator != careCh.end()) {
+                careCh.erase(iterator);
+                return true;
+            }
+            return false;
+        }
 
-        Channel *get();
+        Channel *getChannel();
 
         int count() {
             return careCh.size();

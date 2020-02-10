@@ -20,6 +20,8 @@ set(SOURCE_FILES
         src/util/func_time.cpp
         src/util/byte_buf.h
         src/util/byte_buf.cpp
+        #third_part
+        src/util/third_part/superfasthash/superfasthash.c
         # new event
         src/nevent/channel.cpp
         src/nevent/channel.h
@@ -33,7 +35,9 @@ set(SOURCE_FILES
         src/event/client.cpp
         src/event/client.h
         src/event/service_keeper.cpp
-        src/event/service_keeper.h src/nevent/transfer_handler.cpp src/nevent/transfer_handler.h)
+        src/event/service_keeper.h
+        src/nevent/transfer_handler.cpp
+        src/nevent/transfer_handler.h src/event/channel_keeper.cpp src/event/channel_keeper.h)
 
 set(THREAD_FILES
         #thread

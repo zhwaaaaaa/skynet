@@ -6,7 +6,7 @@
 
 namespace sn {
 
-    void DemoNamingServer::subscribe(const string &serviceName, SubscribeFunc func, void *param) {
+    void DemoNamingServer::subscribe(const string_view &serviceName, SubscribeFunc func, void *param) {
 
         subscribeMap.insert(make_pair(serviceName, FuncWithParam({func, param})));
         EndPoint ep;
@@ -14,7 +14,7 @@ namespace sn {
         func(serviceName, {ep}, true, param);
     }
 
-    void DemoNamingServer::unsubscribe(const string &serviceName) {
+    void DemoNamingServer::unsubscribe(const string_view &serviceName) {
         auto iterator = subscribeMap.find(serviceName);
         if (iterator != subscribeMap.end()) {
             const auto &fwp = iterator->second;
