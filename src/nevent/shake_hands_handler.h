@@ -36,8 +36,6 @@ namespace sn {
         // =====
         uint32_t shakePkgLen;
         int serviceSize;
-        //
-        char tmpServ[256];
 
     public:
         explicit ClientShakeHandsHandler(const shared_ptr<Channel> &ch);

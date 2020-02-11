@@ -10,6 +10,7 @@
 #include <util/func_time.h>
 #include <uv.h>
 #include <nevent/channel.h>
+#include "channel_keeper.h"
 
 namespace sn {
 
@@ -47,8 +48,9 @@ namespace sn {
 
         void stop();
 
-        Channel *getRemoteChannel(const EndPoint endPoint);
-        Channel *removeChannel(const EndPoint endPoint);
+        virtual shared_ptr<ChannelKeeper> getServiceChannel(const EndPoint endPoint) = 0;
+
+        virtual void removeServiceChannel(const EndPoint endPoint) = 0;
 
     };
 

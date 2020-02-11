@@ -141,9 +141,12 @@ namespace sn {
                 if (serviceKeeper) {
                     auto serviceSize = serviceKeeper->count();
                     for (int i = 0; i < serviceSize; ++i) {
-                        status = serviceKeeper->getChannel()->writeMsg(firstReadBuffer, firstBufferOffset, packageLen);
-                        if (status != -1) {
-                            break;
+                        auto pChannel = serviceKeeper->getChannel();
+                        if (pChannel) {
+                            status = pChannel->writeMsg(firstReadBuffer, firstBufferOffset, packageLen);
+                            if (status != -1) {
+                                break;
+                            }
                         }
                     }
                 }
@@ -200,7 +203,8 @@ namespace sn {
         ch->close();
     }
 
-    ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch), valid(false) {
+    ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch, vector<string> &&serv)
+            : RequestHandler(ch), requiredService(serv) {
     }
 
     ServiceKeeper *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {

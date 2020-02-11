@@ -26,7 +26,7 @@ namespace sn {
         void onLoopStart() override {
         }
 
-        virtual void onLoopStop() override {
+        void onLoopStop() override {
         }
 
     public:
@@ -35,13 +35,13 @@ namespace sn {
 
         void addServiceChannel(const EndPoint endPoint);
 
-        shared_ptr<ChannelKeeper> getServiceChannel(const EndPoint endPoint);
+        shared_ptr<ChannelKeeper> getServiceChannel(EndPoint endPoint) override;
 
-        void removeServiceChannel(const EndPoint endPoint);
+        void removeServiceChannel(const EndPoint endPoint) override;
 
-        void enableService(uint32_t channelId, ServiceNamePtr serv);
+        int enableService(uint32_t channelId, const string_view &key);
 
-        void disableService(uint32_t channelId, ServiceNamePtr serv);
+        int disableService(uint32_t channelId, const string_view &key);
 
     };
 }

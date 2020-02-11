@@ -26,6 +26,8 @@ namespace sn {
         } else {
             auto iterator = client.serviceMap.find(serv);
             if (iterator != client.serviceMap.end()) {
+                // 取消订阅的时候回调函数是同步执行的。所以取消订阅的时候service一定没有人用了。
+                assert(!iterator->second->count());
                 // 需要删除malloc的key
                 const char *keyVal = iterator->first.data();
                 client.serviceMap.erase(iterator);
@@ -44,50 +46,54 @@ namespace sn {
         return iterator->second.get();
     }
 
-    void Client::enableService(uint32_t channelId, const ServiceNamePtr serv) {
-        string_view key(serv->buf, serv->len);
+
+    int Client::enableService(uint32_t channelId, const string_view &key) {
         auto iterator = serviceMap.find(key);
         if (iterator != serviceMap.end()) {
             iterator->second->care(channelId);
+            return iterator->second->count();
         } else {
-            char *servCpy = static_cast<char *>(malloc(serv->len + 1));
-            memcpy(servCpy, serv->buf, serv->len);
-            servCpy[serv->len] = '\0';
-            string_view x(servCpy, serv->len);
+            char *servCpy = static_cast<char *>(malloc(key.size() + 1));
+            memcpy(servCpy, key.data(), key.size());
+            servCpy[key.size()] = '\0';
+            string_view x(servCpy, key.size());
 
             auto y = std::make_shared<ServiceKeeper>(x);
             y->care(channelId);
             serviceMap.insert(make_pair(x, y));
 
             Thread::local<NamingServer>().subscribe(x, onNamingServerNotify, y.get());
+            return 1;
         }
     }
 
-    void Client::disableService(uint32_t channelId, const ServiceNamePtr serv) {
-        string_view key(serv->buf, serv->len);
+    int Client::disableService(uint32_t channelId, const string_view &key) {
         auto iterator = serviceMap.find(key);
         if (iterator == serviceMap.end()) {
             LOG(WARNING) << "Not found service enabled:" << key;
-            return;
+            return 0;
         }
-
-        if (iterator->second->noCare(channelId) && !iterator->second->count()) {
+        iterator->second->noCare(channelId);
+        auto i = iterator->second->count();
+        if (!i) {
             LOG(INFO) << "disable not need service:" << key;
+            // 应该用定时器延时注销
             Thread::local<NamingServer>().unsubscribe(key);
         }
+        return i;
     }
 
     void Client::addServiceChannel(const EndPoint endPoint) {
         auto iterator = channelMap.find(endPoint);
         if (iterator == channelMap.end()) {
+            // 这里先给一个nullptr。要连上了在handler中去set。
+            channelMap.insert(make_pair(endPoint, std::make_shared<ChannelKeeper>(nullptr)));
             auto *pChannel = new TcpChannel<ServerReqHandler>;
             try {
                 addLoopable(*pChannel);
                 pChannel->connectTo(endPoint);
-                // 这里先给一个nullptr。要连上了在handler中去set。
-                channelMap.insert(make_pair(endPoint, std::make_shared<ChannelKeeper>(nullptr)));
             } catch (const IoError &e) {
-                LOG(INFO) << e << " on connecting to " << endPoint;
+                LOG(ERROR) << " on connecting to " << endPoint << " " << e;
                 pChannel->close();
                 delete pChannel;
             }
@@ -97,9 +103,7 @@ namespace sn {
 
     shared_ptr<ChannelKeeper> Client::getServiceChannel(const EndPoint endPoint) {
         auto iterator = channelMap.find(endPoint);
-        if (iterator == channelMap.end()) {
-            return shared_ptr<ChannelKeeper>();
-        }
+        assert(iterator != channelMap.end());
         return iterator->second;
     }
 
@@ -108,9 +112,10 @@ namespace sn {
         if (iterator == channelMap.end()) {
             return;
         }
-        if (!iterator->second->serviceCount()) {
-            // TODO
+        if (iterator->second->serviceCount()) {
+            // 还有
         }
 
     }
+
 }

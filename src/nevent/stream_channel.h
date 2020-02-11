@@ -254,16 +254,34 @@ namespace sn {
     private:
         EndPoint raddr;
 
-        static void onConnected(uv_connect_t *req, int status) {
-            if (!status) {
-                free(req);
-                return;
+        static void timeoutReconnect(uv_timer_t *handle) {
+
+            TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(handle->data);
+            free(handle);
+            try {
+                ch->connectTo(ch->raddr);
+            } catch (const IoError &e) {
+                LOG(ERROR) << "timeoutReconnect " << e;
+                delete ch;
             }
+
+        }
+
+        static void onConnected(uv_connect_t *req, int status) {
             TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(req->data);
-            auto pHandler = new Handler(shared_ptr<TcpChannel<Handler>>(ch));
-            uv_stream_t *stream = req->handle;
-            stream->data = pHandler;
-            uv_read_start(stream, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
+            if (!status) {
+                auto pHandler = new Handler(shared_ptr<TcpChannel<Handler>>(ch));
+                uv_stream_t *stream = req->handle;
+                stream->data = pHandler;
+                uv_read_start(stream, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
+                free(req);
+            } else {
+                LOG(ERROR) << "Connect error retry" << uv_strerror(status);
+                uv_timer_t *timer = static_cast<uv_timer_t *>(malloc(sizeof(uv_timer_t)));
+                timer->data = ch;
+                uv_timer_init(req->handle->loop, timer);
+                uv_timer_start(timer, timeoutReconnect, 3000, 0);
+            }
         }
 
     public:
@@ -284,6 +302,11 @@ namespace sn {
             uv_tcp_init(loop, (uv_tcp_t *) &handle);
         }
 
+        /**
+         * 如果这里抛出异常，回调函数一定不会执行。
+         * 如果没有抛出异常。则会无限次重连
+         * @param endPoint 远程
+         */
         void connectTo(EndPoint endPoint) {
             raddr = endPoint;
 
@@ -292,8 +315,6 @@ namespace sn {
                 addToLoop(uv_default_loop());
             }
 
-            uv_connect_t *conType = static_cast<uv_connect_t *>(malloc(sizeof(uv_connect_t)));
-            conType->data = this;
             struct sockaddr_in serv_addr;
             bzero((char *) &serv_addr, sizeof(serv_addr));
             serv_addr.sin_family = AF_INET;
@@ -309,6 +330,8 @@ namespace sn {
                 throw IoError(r, "Bind");
             }
 
+            uv_connect_t *conType = static_cast<uv_connect_t *>(malloc(sizeof(uv_connect_t)));
+            conType->data = this;
             if ((r = uv_tcp_connect(conType, &handle, (sockaddr *) &serv_addr, onConnected))) {
                 throw IoError(r, "Connection");
             }

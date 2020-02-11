@@ -30,7 +30,7 @@ namespace sn {
             return reinterpret_cast<Segment<NEW_LEN> *>(buf + offset);
         }
 
-        template<typename T>
+        template<typename T = Segment<LEN>>
         T *last() {
             return reinterpret_cast<T *>(buf + len);
         }
@@ -63,7 +63,7 @@ namespace sn {
 #define WRITELE_VAL_64(ptr, val) *reinterpret_cast<uint64_t *>(ptr)=__builtin_bswap64(val)
 #define WRITELE_VAL_32(ptr, val) *reinterpret_cast<uint32_t *>(ptr)=__builtin_bswap32(val)
 #define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=__builtin_bswap16(val)
-#define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=val
+#define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=(val)
 
 //=======================================================
 #define CONVERT_VAL_64(val) __builtin_bswap64(val)
@@ -79,10 +79,10 @@ namespace sn {
 
 //================================================
 
-#define WRITELE_VAL_64(ptr, val) *reinterpret_cast<uint64_t *>(ptr)=val
-#define WRITELE_VAL_32(ptr, val) *reinterpret_cast<uint32_t *>(ptr)=val
-#define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=val
-#define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=val
+#define WRITELE_VAL_64(ptr, val) *reinterpret_cast<uint64_t *>(ptr)=(val)
+#define WRITELE_VAL_32(ptr, val) *reinterpret_cast<uint32_t *>(ptr)=(val)
+#define WRITELE_VAL_16(ptr, val) *reinterpret_cast<uint16_t *>(ptr)=(val)
+#define WRITELE_VAL_8(ptr, val) *reinterpret_cast<uint8_t *>(ptr)=(val)
 
 #define CONVERT_VAL_64(val) (val)
 #define CONVERT_VAL_32(val) (val)

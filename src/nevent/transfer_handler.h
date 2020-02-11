@@ -76,8 +76,10 @@ namespace sn {
 
 
     class ClientAppHandler : public RequestHandler {
+    private:
+        vector<string> requiredService;
     public:
-        explicit ClientAppHandler(const shared_ptr<Channel> &ch);
+        explicit ClientAppHandler(const shared_ptr<Channel> &ch, vector<string> &&serv);
 
     protected:
 

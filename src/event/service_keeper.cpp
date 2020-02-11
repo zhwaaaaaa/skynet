@@ -8,17 +8,18 @@
 #include <utility>
 #include <registry/naming_server.h>
 #include <thread/thread.h>
-#include <nevent/stream_channel.h>
+#include <cassert>
 
 namespace sn {
 
 
-    ServiceKeeper::ServiceKeeper(const string_view &serv) : serv(serv) {}
+    ServiceKeeper::ServiceKeeper(const string_view &serv) : serv(serv), lastIndex(0) {}
 
     ServiceKeeper::~ServiceKeeper() {
-        Thread::local<NamingServer>().unsubscribe(serv);
         for (const auto &pair: chMap) {
-            pair.second->close();
+            // 服务器
+            pair.second->removeService(serv);
+            chMap.erase(pair.first);
         }
     }
 
@@ -34,7 +35,8 @@ namespace sn {
                 }
             }
             if (!exits) {
-                pair.second->close();
+                // 服务器
+                pair.second->removeService(serv);
                 chMap.erase(pair.first);
             }
         }
@@ -42,16 +44,7 @@ namespace sn {
         // 新增的连接进来
         for (const EndPoint ep: eps) {
             if (chMap.find(ep) == chMap.end()) {
-                // 不存在，新增的。
-                auto pChannel = new TcpChannel<ClientReqHandler>;
-                try {
-//                    Thread::local<Reactor>().addLoopable(*pChannel);
-                    pChannel->connectTo(ep);
-                    chMap.insert(make_pair(ep, pChannel));
-                } catch (const IoError &e) {
-                    LOG(INFO) << e << " on connecting to " << ep;
-                    delete pChannel;
-                }
+                chMap.insert(make_pair(ep, Thread::local<Reactor>().getServiceChannel(ep)));
             }
         }
 
@@ -68,7 +61,7 @@ namespace sn {
         }
         auto iterator = chMap.find(currentEps[lastIndex++ % len]);
         assert(iterator != chMap.end());
-        return iterator->second;
+        return iterator->second->channel();
     }
 
 

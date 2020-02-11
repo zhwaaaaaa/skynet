@@ -9,6 +9,7 @@
 #include <vector>
 #include <nevent/channel.h>
 #include <util/HASH_MAP_HPP.h>
+#include "channel_keeper.h"
 
 namespace sn {
     using namespace std;
@@ -19,7 +20,7 @@ namespace sn {
     private:
         const string_view serv;
         hash_set<uint32_t> careCh;
-        hash_map<EndPoint, Channel *> chMap;
+        hash_map<EndPoint, shared_ptr<ChannelKeeper>> chMap;
         vector<EndPoint> currentEps;
         uint32_t lastIndex;
 

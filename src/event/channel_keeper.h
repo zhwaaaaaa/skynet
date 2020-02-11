@@ -7,11 +7,13 @@
 
 #include <util/endpoint.h>
 #include <string_view>
-#include <nevent/channel_handler.h>
+#include <nevent/channel.h>
+#include <memory>
 
 namespace sn {
 
     using std::string_view;
+    using ChannelPtr = std::shared_ptr<Channel>;
 
     class ChannelKeeper {
     private:
@@ -24,6 +26,17 @@ namespace sn {
             return services;
         }
 
+        void addService(const string_view &serv) {
+            services.insert(serv);
+        }
+
+        void removeService(const string_view &serv) {
+            services.erase(serv);
+            if (services.empty()) {
+                closeChannel();
+            }
+        }
+
         void resetChannel(ChannelPtr &ch) {
             channelPtr = ch;
         }
@@ -34,6 +47,12 @@ namespace sn {
 
         Channel *channel() {
             return channelPtr.get();
+        }
+
+        void closeChannel() {
+            if (channelPtr.get()) {
+                channelPtr->close();
+            }
         }
 
     };

@@ -23,7 +23,7 @@ namespace sn {
     };
 
     inline ostream &operator<<(ostream &out, const IoError &e) {
-        return out << "IoError " << e.what() << ":" << uv_err_name(e.code);
+        return out << "IoError " << e.what() << ":" << uv_strerror(e.code);
     }
 }
 

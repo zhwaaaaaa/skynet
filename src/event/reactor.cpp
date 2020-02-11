@@ -58,9 +58,6 @@ namespace sn {
         uv_stop(&reactor->loop);
     }
 
-    Channel *Reactor::getRemoteChannel(const EndPoint endPoint) {
-        return nullptr;
-    }
 
 
 }
