@@ -215,6 +215,12 @@ namespace sn {
         header->clientId = ch->channelId();
     }
 
+    ClientAppHandler::~ClientAppHandler() {
+        for (const auto &s:requiredService) {
+            LOG(INFO) << "~ClientAppHandler()" << s;
+        }
+    }
+
 
     ServerReqHandler::ServerReqHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {}
 

@@ -10,6 +10,7 @@
 #include "channel_keeper.h"
 #include <util/buffer.h>
 #include <util/HASH_MAP_HPP.h>
+#include <registry/naming_server.h>
 
 namespace sn {
     using ServiceNamePtr = Segment<uint8_t> *;
@@ -24,9 +25,12 @@ namespace sn {
     protected:
 
         void onLoopStart() override {
+            Thread::local<Client>(this);
+            Thread::local<NamingServer>(new DemoNamingServer);
         }
 
         void onLoopStop() override {
+            Thread::localRelease<Client>();
         }
 
     public:

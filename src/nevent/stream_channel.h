@@ -91,7 +91,7 @@ namespace sn {
             if (writingQue.empty() && len < 212992) {
                 if (len <= BUFFER_BUF_LEN - firstOffset) {
                     uv_buf_t buf = {buffer->buf + firstOffset, len};
-                    writed = uv_try_write((uv_stream_t *) &handle, &buf, 0);
+                    writed = uv_try_write((uv_stream_t *) &handle, &buf, 1);
                 } else {
                     auto exceptFirst = len - (BUFFER_BUF_LEN - firstOffset);
                     auto tailLen = exceptFirst % BUFFER_BUF_LEN;

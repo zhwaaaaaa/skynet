@@ -81,6 +81,8 @@ namespace sn {
     public:
         explicit ClientAppHandler(const shared_ptr<Channel> &ch, vector<string> &&serv);
 
+        ~ClientAppHandler() override;
+
     protected:
 
         ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;

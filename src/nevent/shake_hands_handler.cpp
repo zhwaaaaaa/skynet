@@ -9,7 +9,7 @@ namespace sn {
 
     ClientShakeHandsHandler::ClientShakeHandsHandler(const shared_ptr<Channel> &ch)
             : ChannelHandler(ch), shakeComplete(false), readBytes(0), firstBuffer(nullptr), lastBuffer(nullptr),
-              lastBufferOffset(0), serviceSize(0) {
+              lastBufferOffset(0), serviceSize(0), shakePkgLen(0) {
     }
 
     void ClientShakeHandsHandler::onMemoryRequired(size_t suggested_size, uv_buf_t *buf) {
@@ -115,7 +115,7 @@ namespace sn {
                 require -= BUFFER_BUF_LEN;
             }
             WRITELE_VAL_32(tmp->buf, retPkgBytes - 4);
-            WRITELE_VAL_16(tmp->buf, serviceSize);
+            WRITELE_VAL_16(tmp->buf + 4, serviceSize);
             uint32_t writed = 6;
             Client &client = Thread::local<Client>();
             for (const string &s:servs) {
@@ -149,13 +149,15 @@ namespace sn {
             assert(writed == retPkgBytes);
             if (ch->writeMsg(firstBuffer, 0, retPkgBytes) == -1) {
                 ByteBuf::recycleWrited(firstBuffer, 0, retPkgBytes);
+                firstBuffer = nullptr;
                 ch->close();
                 return -1;
+            } else {
+                firstBuffer = nullptr;
             }
 
             auto handler = new ClientAppHandler(ch, std::move(servs));
 
-            // TODO subscribe to naming server and connect to remote server
             auto pHandler = ch->replaceHandler(handler);
             assert(pHandler == this);
             delete pHandler;// 自杀
