@@ -274,7 +274,6 @@ namespace sn {
                 uv_stream_t *stream = req->handle;
                 stream->data = pHandler;
                 uv_read_start(stream, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
-                free(req);
             } else {
                 LOG(ERROR) << "Connect error retry" << uv_strerror(status);
                 uv_timer_t *timer = static_cast<uv_timer_t *>(malloc(sizeof(uv_timer_t)));
@@ -282,6 +281,7 @@ namespace sn {
                 uv_timer_init(req->handle->loop, timer);
                 uv_timer_start(timer, timeoutReconnect, 3000, 0);
             }
+            free(req);
         }
 
     public:
