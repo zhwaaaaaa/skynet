@@ -7,7 +7,7 @@
 
 #include <zconf.h>
 #include <ctime>
-#include <sys/time.h>
+#include <event.h>
 
 namespace sn {
     typedef void (*ActionFunc)(void *param);
@@ -21,6 +21,10 @@ namespace sn {
     };
 
     long int currentTime();
+
+    long int currentTimeUs();
+
+
 
 }
 

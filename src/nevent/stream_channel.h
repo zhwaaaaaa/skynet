@@ -43,7 +43,7 @@ namespace sn {
             // 不管对错，先把正在写的回收掉
             while (!writingQue.empty()) {
                 const auto &evt = writingQue.front();
-                ByteBuf::recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                ByteBuf::recycleLen(evt.buffer, evt.bufferOffset, evt.dataLen);
                 writingQue.pop_front();
             }
             if (status) {
@@ -72,6 +72,44 @@ namespace sn {
             return old;
         }
 
+        static void recycleWrited(Buffer *buffer, uint32_t firstOffset, uint32_t writed,
+                                  uint32_t *unwritedOffset, Buffer **unwritedBuffer) {
+            int rLen = BUFFER_BUF_LEN - firstOffset;
+            Buffer *tmp = buffer;
+            Buffer *next = tmp->next;
+            while (writed > rLen) {
+                assert(next);
+                if (--tmp->refCount) {
+                    ByteBuf::recycleSingle(tmp);
+                }
+                tmp = next;
+                rLen += BUFFER_BUF_LEN;
+                next = tmp->next;
+            }
+
+            // 两个相等还有最后一个没回收
+            if (writed == rLen) {
+                if (unwritedOffset) {
+                    *unwritedOffset = 0;
+                }
+                if (unwritedBuffer) {
+                    *unwritedBuffer = next;
+                }
+                if (--tmp->refCount) {
+                    ByteBuf::recycleSingle(tmp);
+                }
+            } else {
+                // 如果发现最后一个没有写完，是不会回收最后一个的
+                if (unwritedOffset) {
+                    *unwritedOffset = BUFFER_BUF_LEN - (rLen - writed);
+                }
+                if (unwritedBuffer) {
+                    *unwritedBuffer = tmp;
+                }
+            }
+
+        }
+
         /**
          * 返回
          * @param buffer 数据buffer链表头
@@ -89,6 +127,7 @@ namespace sn {
 
             // tryWrite 不能写过多数据。因为缓冲区写满了就无法再写了.208K
             if (writingQue.empty() && len < 212992) {
+
                 if (len <= BUFFER_BUF_LEN - firstOffset) {
                     uv_buf_t buf = {buffer->buf + firstOffset, len};
                     writed = uv_try_write((uv_stream_t *) &handle, &buf, 1);
@@ -122,8 +161,11 @@ namespace sn {
                     close();
                     // 返回eof调用者还可以找另一个channel重发或自行处理
                     return -1;
+                } else if (len == writed) {
+                    ByteBuf::recycleLen(buffer, firstOffset, len);
+                    return writed;
                 } else {
-                    ByteBuf::recycleWrited(buffer, firstOffset, writed, &firstOffset, &buffer);
+                    recycleWrited(buffer, firstOffset, writed, &firstOffset, &buffer);
                     len -= writed;
                 }
             }
@@ -140,7 +182,7 @@ namespace sn {
                         // 如果之前没有写入操作,返回一个错误，这个buffer还可以重新找一个管道写出去。
                         return -1;
                     } else {
-                        ByteBuf::recycleWrited(buffer, firstOffset, len);
+                        ByteBuf::recycleLen(buffer, firstOffset, len);
                         close();
                         return -2;
                     }
@@ -157,13 +199,13 @@ namespace sn {
 
                 while (!writingQue.empty()) {
                     const auto &evt = writingQue.front();
-                    ByteBuf::recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                    ByteBuf::recycleLen(evt.buffer, evt.bufferOffset, evt.dataLen);
                     writingQue.pop_front();
                 }
 
                 while (!waitingWrite.empty()) {
                     const auto &evt = waitingWrite.front();
-                    ByteBuf::recycleWrited(evt.buffer, evt.bufferOffset, evt.dataLen);
+                    ByteBuf::recycleLen(evt.buffer, evt.bufferOffset, evt.dataLen);
                     waitingWrite.pop_front();
                 }
 
@@ -219,7 +261,7 @@ namespace sn {
             int status;
             if (len <= BUFFER_BUF_LEN - firstOffset) {
                 uv_buf_t buf = {buffer->buf + firstOffset, len};
-                status = uv_write(&wrHandle, (uv_stream_t *) &handle, &buf, 0, onWritingCompleted);
+                status = uv_write(&wrHandle, (uv_stream_t *) &handle, &buf, 1, onWritingCompleted);
             } else {
                 auto exceptFirst = len - (BUFFER_BUF_LEN - firstOffset);
                 auto tailLen = exceptFirst % BUFFER_BUF_LEN;
@@ -360,7 +402,7 @@ namespace sn {
             LOG(INFO) << "Accept connection from " << raddr;
             handle.data = new Handler(shared_ptr<TcpChannel<Handler>>(this));
             uv_tcp_keepalive(&handle, 1, 3600);
-            uv_tcp_nodelay(&handle, 1);
+            uv_tcp_nodelay(&handle, 0);
             uv_read_start(client, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
         };
 

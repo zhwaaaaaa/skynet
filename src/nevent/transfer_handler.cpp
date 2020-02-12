@@ -27,16 +27,18 @@ namespace sn {
                 lastBufferUsed = 0;
             }
         } else {
-            assert(!firstReadBuffer);
             if (!lastReadBuffer) { // first will hit
-                lastReadBuffer = ByteBuf::alloc();
+                lastReadBuffer = firstReadBuffer = ByteBuf::alloc();
             }
             // 包已经解析完了。并且这个包也已经快满了，没有必要重用了。
             if (lastBufferUsed + 256 > BUFFER_BUF_LEN) {
                 lastReadBuffer = ByteBuf::alloc();
                 lastBufferUsed = 0;
+                // 因为还没解析的字节数为0，所以，读指针和写指针相同
+                firstReadBuffer = lastReadBuffer;
+                firstBufferOffset = lastBufferUsed;
             }
-            firstReadBuffer = lastReadBuffer;
+
         }
 
         buf->len = BUFFER_BUF_LEN - lastBufferUsed;
@@ -44,7 +46,7 @@ namespace sn {
     }
 
     int RequestHandler::onMessage(const uv_buf_t *buf, ssize_t nread) {
-        assert(lastReadBuffer);
+
         lastBufferUsed += nread;
         readPkgLen += nread;
 
@@ -124,7 +126,7 @@ namespace sn {
                     msgLastBuffer = msgLastBuffer->next;
                 }
                 if (firstBufferToMsgEndLen &&
-                    (readPkgLen > packageLen || firstBufferToMsgEndLen + 256 <= BUFFER_BUF_LEN)) {
+                    (firstBufferToMsgEndLen + 256 <= BUFFER_BUF_LEN || readPkgLen > packageLen)) {
                     // 这个消息没有把最后一个buffer占满， 已经读取到了下一个消息的一部分或者这个这个buffer还有超过256个字节可以用
                     ++msgLastBuffer->refCount;// 最后一个buffer和下一个消息会重用一个buffer，所以引用计数+1
                 }
@@ -155,20 +157,25 @@ namespace sn {
 
                     if (status == -1) {
                         // 回收掉
-                        ByteBuf::recycleWrited(firstReadBuffer, firstBufferOffset, packageLen);
+                        ByteBuf::recycleLen(firstReadBuffer, firstBufferOffset, packageLen);
                     }
 
                     Buffer *errBuffer = ByteBuf::alloc();
                     auto *responseId = reinterpret_cast<ResponseId *>(errBuffer->buf);
                     bzero(responseId, sizeof(ResponseId));
-                    responseId->headerLen = CONVERT_VAL_8(sizeof(ResponseId));
+                    responseId->headerLen = CONVERT_VAL_8(sizeof(ResponseId) - 1);
                     responseId->requestId = reqId;
                     responseId->clientId = clientId;
                     responseId->serverId = serverId;
-                    responseId->responseCode = status == -1 ? CONVERT_VAL_8(SKYNET_ERR_TRANSFER)
-                                                            : CONVERT_VAL_8(SKYNET_ERR_NO_SERVICE);
-                    if (ch->writeMsg(errBuffer, 0, sizeof(ResponseId)) == UV_EOF) {
+                    responseId->responseCode = status == -1 ? CONVERT_VAL_8(SKYNET_ERR_NO_SERVICE)
+                                                            : CONVERT_VAL_8(SKYNET_ERR_TRANSFER);
+                    auto start = currentTimeUs();
+                    if (ch->writeMsg(errBuffer, 0, sizeof(ResponseId) ) == -1) {
                         ByteBuf::recycleSingle(errBuffer);
+                    }
+                    auto cost = currentTimeUs() - start;
+                    if (cost > 2) {
+                        LOG(INFO) << reqId << " writeMsg Time const " << cost;
                     }
                 }
 
@@ -187,7 +194,7 @@ namespace sn {
 
     void RequestHandler::onClose(const uv_buf_t *buf) {
         if (firstReadBuffer) {
-            ByteBuf::recycleWrited(firstReadBuffer, firstBufferOffset, readPkgLen);
+            ByteBuf::recycleLen(firstReadBuffer, firstBufferOffset, readPkgLen);
             firstReadBuffer = nullptr;
             firstBufferOffset = 0;
         }
@@ -196,7 +203,7 @@ namespace sn {
 
     void RequestHandler::onError(const uv_buf_t *buf) {
         if (firstReadBuffer) {
-            ByteBuf::recycleWrited(firstReadBuffer, firstBufferOffset, readPkgLen);
+            ByteBuf::recycleLen(firstReadBuffer, firstBufferOffset, readPkgLen);
             firstReadBuffer = nullptr;
             firstBufferOffset = 0;
         }

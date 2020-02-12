@@ -9,14 +9,15 @@
 #include <uv-unix.h>
 #include <cassert>
 #include "buffer.h"
+#include <glog/logging.h>
 
 namespace sn {
     struct BufferPool {
         uint32_t size;
         Buffer *head;
-        Buffer *tail;
+//        Buffer *tail;
 
-        BufferPool() : size(0), head(nullptr), tail(nullptr) {}
+        BufferPool() : size(0), head(nullptr) {}
 
         ~BufferPool() {
             Buffer *h = head;
@@ -33,7 +34,7 @@ namespace sn {
     private:
         static thread_local BufferPool pool;
     public:
-        static Buffer *alloc() {
+        inline static Buffer *alloc() {
             Buffer *buffer;
             if (pool.size) {
                 buffer = pool.head;
@@ -41,6 +42,7 @@ namespace sn {
                 pool.size--;
             } else {
                 buffer = static_cast<Buffer *>(malloc(BUFFER_SIZE));
+                LOG(INFO) << "--------alloc------ ";
             }
             buffer->next = nullptr;
             buffer->refCount = 1;
@@ -48,39 +50,21 @@ namespace sn {
             return buffer;
         }
 
-        static void recycleWrited(Buffer *buffer, uint32_t firstOffset, uint32_t writed,
-                                  uint32_t *unwritedOffset = nullptr, Buffer **unwritedBuffer = nullptr) {
-            int writeLen = BUFFER_BUF_LEN - firstOffset;
+        static void recycleLen(Buffer *buffer, uint32_t firstOffset, uint32_t len) {
+            int rLen = BUFFER_BUF_LEN - firstOffset;
             Buffer *tmp = buffer;
             Buffer *next = tmp->next;
-            while (writed > writeLen) {
+            while (len > rLen) {
                 assert(next);
-                if (--tmp->refCount) {
+                if (!--tmp->refCount) {
                     ByteBuf::recycleSingle(tmp);
                 }
                 tmp = next;
-                writeLen += BUFFER_BUF_LEN;
+                rLen += BUFFER_BUF_LEN;
                 next = tmp->next;
             }
-
-            // 两个相等还有最后一个没回收
-            if (writed == writeLen) {
-                if (unwritedOffset) {
-                    *unwritedOffset = 0;
-                }
-                if (unwritedBuffer) {
-                    *unwritedBuffer = next;
-                }
-                if (--tmp->refCount) {
-                    ByteBuf::recycleSingle(tmp);
-                }
-            } else {
-                if (unwritedOffset) {
-                    *unwritedOffset = BUFFER_BUF_LEN - (writeLen - writed);
-                }
-                if (unwritedBuffer) {
-                    *unwritedBuffer = tmp;
-                }
+            if (!--tmp->refCount) {
+                ByteBuf::recycleSingle(tmp);
             }
 
         }
@@ -101,17 +85,12 @@ namespace sn {
             }
             buffer->next = oldHead;
             pool.size += size;
-            if (!oldHead) {
-                pool.tail = buffer;
-            }
         }
 
-        static void recycleSingle(Buffer *buffer) {
+        inline static void recycleSingle(Buffer *buffer) {
+            assert(!buffer->refCount);
             buffer->next = pool.head;
             pool.head = buffer;
-            if (!pool.size) {
-                pool.tail = buffer;
-            }
             ++pool.size;
         }
 

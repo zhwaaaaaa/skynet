@@ -148,7 +148,7 @@ namespace sn {
 
             assert(writed == retPkgBytes);
             if (ch->writeMsg(firstBuffer, 0, retPkgBytes) == -1) {
-                ByteBuf::recycleWrited(firstBuffer, 0, retPkgBytes);
+                ByteBuf::recycleLen(firstBuffer, 0, retPkgBytes);
                 firstBuffer = nullptr;
                 ch->close();
                 return -1;
@@ -173,7 +173,7 @@ namespace sn {
 
     void ClientShakeHandsHandler::onClose(const uv_buf_t *buf) {
         if (firstBuffer) {
-            ByteBuf::recycleWrited(firstBuffer, 0, readBytes);
+            ByteBuf::recycleLen(firstBuffer, 0, readBytes);
             firstBuffer = nullptr;
         }
         ch->close();
@@ -181,7 +181,7 @@ namespace sn {
 
     void ClientShakeHandsHandler::onError(const uv_buf_t *buf) {
         if (firstBuffer) {
-            ByteBuf::recycleWrited(firstBuffer, 0, readBytes);
+            ByteBuf::recycleLen(firstBuffer, 0, readBytes);
             firstBuffer = nullptr;
         }
         ch->close();
@@ -189,7 +189,7 @@ namespace sn {
 
     ClientShakeHandsHandler::~ClientShakeHandsHandler() {
         if (firstBuffer) {
-            ByteBuf::recycleWrited(firstBuffer, 0, readBytes);
+            ByteBuf::recycleLen(firstBuffer, 0, readBytes);
             firstBuffer = nullptr;
         }
     }
