@@ -44,6 +44,8 @@ namespace sn {
 
 
     constexpr const uint REQ_HEADER_LEN = sizeof(RequestId);//17 [4:requestId][4:clientId][4:serverId][1:bodyType][4:bodyLen]
+    constexpr const uint RESP_HEADER_LEN = sizeof(ResponseId);//19
+    constexpr const uint RESP_HEADER_CONTENT_LEN = sizeof(ResponseId) - 1;//18
 
     class RequestHandler : public ChannelHandler {
     private:
@@ -100,6 +102,49 @@ namespace sn {
         ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;
 
         void setResponseChannelId(RequestId *header) override;
+    };
+
+    class ResponseHandler : public ChannelHandler {
+    private:
+        uint32_t firstBufferOffset;
+        uint32_t lastBufferUsed;
+
+        size_t readPkgLen;
+        size_t packageLen;
+        Buffer *lastReadBuffer;
+        Buffer *firstReadBuffer;
+        //buffer
+        char tmpHead[sizeof(ResponseId)];// 用着sizeof(ResponseId)个字节来解决header粘包问题
+    public:
+        explicit ResponseHandler(const shared_ptr<Channel> &ch);
+
+    protected:
+        void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;
+
+        int onMessage(const uv_buf_t *buf, ssize_t nread) override;
+
+        void onClose(const uv_buf_t *buf) override;
+
+        void onError(const uv_buf_t *buf) override;
+
+        virtual Channel *findTransferChannel(ResponseId *responseId) = 0;
+
+    };
+
+    class ClientResponseHandler : public ResponseHandler {
+    public:
+        explicit ClientResponseHandler(const shared_ptr<Channel> &ch);
+
+    protected:
+        Channel *findTransferChannel(ResponseId *responseId) override;
+    };
+
+    class ServerResponseHandler : public ResponseHandler {
+    public:
+        explicit ServerResponseHandler(const shared_ptr<Channel> &ch);
+
+    protected:
+        Channel *findTransferChannel(ResponseId *responseId) override;
     };
 
 
