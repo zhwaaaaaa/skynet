@@ -25,10 +25,8 @@ namespace sn {
     constexpr const uint8_t SERVICE_TYPE_CLIENT = 0;
     constexpr const uint8_t SERVICE_TYPE_SERVER = 0xFF;
 
-
-    class ClientShakeHandsHandler : public ChannelHandler {
+    class ShakeHandsHandler : public ChannelHandler {
     private:
-        bool shakeComplete;
         uint32_t readBytes;
         Buffer *firstBuffer;
         Buffer *lastBuffer;
@@ -36,11 +34,10 @@ namespace sn {
         // =====
         uint32_t shakePkgLen;
         int serviceSize;
-
     public:
-        explicit ClientShakeHandsHandler(const shared_ptr<Channel> &ch);
+        explicit ShakeHandsHandler(const shared_ptr<Channel> &ch);
 
-        ~ClientShakeHandsHandler() override;
+        ~ShakeHandsHandler() override;
 
     protected:
         void onMemoryRequired(size_t suggested_size, uv_buf_t *buf) override;
@@ -51,7 +48,23 @@ namespace sn {
 
         void onError(const uv_buf_t *buf) override;
 
+        virtual int doShakeHands(Buffer *firstBuf, uint32_t pkgLen, int serviceSize) = 0;
+    };
 
+
+    class ClientShakeHandsHandler : public ShakeHandsHandler {
+    public:
+        explicit ClientShakeHandsHandler(const shared_ptr<Channel> &ch);
+
+    protected:
+        int doShakeHands(Buffer *firstBuf, uint32_t pkgLen, int serviceSize) override;
+    };
+
+    class ServerShakeHandsHandler : public ShakeHandsHandler {
+    public:
+        explicit ServerShakeHandsHandler(const shared_ptr<Channel> &ch);
+    protected:
+        int doShakeHands(Buffer *firstBuf, uint32_t pkgLen, int serviceSize) override;
     };
 }
 

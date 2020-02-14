@@ -14,6 +14,8 @@ set(SOURCE_FILES
         src/event/service_keeper.h
         src/event/channel_keeper.cpp
         src/event/channel_keeper.h
+        src/event/server.cpp
+        src/event/server.h
         #registry
         src/registry/naming_server.h
         src/registry/naming_server.cpp
