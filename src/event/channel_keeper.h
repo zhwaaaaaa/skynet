@@ -20,7 +20,9 @@ namespace sn {
         ChannelPtr channelPtr;
         hash_set<string_view> services;
     public:
-        ChannelKeeper(Channel *channel) : channelPtr(channel) {}
+        explicit ChannelKeeper(Channel *channel);
+
+        ~ChannelKeeper();
 
         const hash_set<string_view> &getService() {
             return services;

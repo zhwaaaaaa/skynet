@@ -88,7 +88,7 @@ namespace sn {
         if (iterator == channelMap.end()) {
             // 这里先给一个nullptr。要连上了在handler中去set。
             channelMap.insert(make_pair(endPoint, std::make_shared<ChannelKeeper>(nullptr)));
-            auto *pChannel = new TcpChannel<ServerReqHandler>;
+            auto *pChannel = new TcpChannel<ClientResponseHandler>;
             try {
                 addLoopable(*pChannel);
                 pChannel->connectTo(endPoint);
@@ -113,7 +113,23 @@ namespace sn {
             return;
         }
         if (iterator->second->serviceCount()) {
-            // 还有
+            // 降低channel引用计数。以便于Channel的内存回收
+            iterator->second->channelPointer().reset();
+            // 这个channel还有service需要使用
+            // 所以必须重连这个Channel
+            LOG(INFO) << "连接" << endPoint << " 还承载了服务，重连...";
+            auto *pChannel = new TcpChannel<ClientResponseHandler>;
+            try {
+                addLoopable(*pChannel);
+                pChannel->connectTo(endPoint);
+            } catch (const IoError &e) {
+                LOG(ERROR) << " on connecting to " << endPoint << " " << e;
+                pChannel->close();
+                delete pChannel;
+            }
+        } else {
+            // 这个channel已经没有service使用了
+            channelMap.erase(iterator);
         }
 
     }

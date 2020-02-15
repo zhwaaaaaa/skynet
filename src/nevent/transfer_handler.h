@@ -70,7 +70,7 @@ namespace sn {
 
         void onError(const uv_buf_t *buf) override;
 
-        virtual ChannelHolder *findOutCh(ServiceNamePtr serviceName) = 0;
+        virtual ChannelGroup *findOutCh(ServiceNamePtr serviceName) = 0;
 
         virtual void setResponseChannelId(RequestId *header) = 0;
 
@@ -87,7 +87,7 @@ namespace sn {
 
     protected:
 
-        ChannelHolder *findOutCh(ServiceNamePtr serviceName) override;
+        ChannelGroup *findOutCh(ServiceNamePtr serviceName) override;
 
         void setResponseChannelId(RequestId *header) override;
 
@@ -98,8 +98,10 @@ namespace sn {
     public:
         explicit ServerReqHandler(const shared_ptr<Channel> &ch);
 
+        ~ServerReqHandler() override;
+
     private:
-        ChannelHolder *findOutCh(ServiceNamePtr serviceName) override;
+        ChannelGroup *findOutCh(ServiceNamePtr serviceName) override;
 
         void setResponseChannelId(RequestId *header) override;
     };
@@ -137,6 +139,8 @@ namespace sn {
     class ClientResponseHandler : public ResponseHandler {
     public:
         explicit ClientResponseHandler(const shared_ptr<Channel> &ch);
+
+        ~ClientResponseHandler() override;
 
     protected:
         Channel *findTransferChannel(ResponseId *responseId) override;

@@ -16,12 +16,38 @@ namespace sn {
         BodyDescPtr param;
         BodyDescPtr result;
     };
+    class ChannelHolder : public ChannelGroup {
+    private:
+        uint32_t index;
+    protected:
+        vector<ChannelPtr> chs;
+    public:
+        ChannelHolder();
 
+        explicit ChannelHolder(ChannelPtr &first);
+
+        int addChannel(ChannelPtr &ch);
+
+        int removeChannel(ChannelPtr &ch);
+
+        int removeChannel(uint32_t channelId);
+
+        Channel *nextChannel() override;
+
+        int channelSize() const override {
+            return chs.size();
+        }
+    };
 
     class Server : public Reactor {
     private:
         hash_map<string_view, shared_ptr<ChannelHolder>> serverAppChs;
         hash_map<uint32_t, ChannelPtr> responseChs;
+    protected:
+        void onLoopStart() override {
+            Thread::local<Server>(this);
+        }
+
     public:
         void addServerAppChannel(ChannelPtr &channelPtr, vector<ServiceDesc> &sds);
 

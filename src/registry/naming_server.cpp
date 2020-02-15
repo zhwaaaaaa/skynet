@@ -11,7 +11,7 @@ namespace sn {
         subscribeMap.insert(make_pair(serviceName, FuncWithParam({func, param})));
         EndPoint ep;
         str2endpoint("127.0.0.1:9999", &ep);
-        func(serviceName, {}, true, param);
+        func(serviceName, {ep}, true, param);
     }
 
     void DemoNamingServer::unsubscribe(const string_view &serviceName) {

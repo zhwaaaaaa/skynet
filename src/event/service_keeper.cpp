@@ -3,7 +3,6 @@
 //
 
 #include "service_keeper.h"
-#include "reactor.h"
 #include "client.h"
 
 #include <utility>
@@ -11,58 +10,19 @@
 #include <thread/thread.h>
 
 namespace sn {
-    ChannelHolder::ChannelHolder() : index(0) {}
 
-    ChannelHolder::ChannelHolder(ChannelPtr &first) : index(0) {
-        chs.push_back(first);
-    }
-
-    int ChannelHolder::addChannel(ChannelPtr &ch) {
-
-        for (const ChannelPtr &c:chs) {
-            if (c->channelId() == ch->channelId()) {
-                return chs.size();
-            }
-        }
-        chs.push_back(ch);
-        return chs.size();
-    }
-
-    int ChannelHolder::removeChannel(ChannelPtr &ch) {
-        auto iterator = remove_if(chs.begin(), chs.end(), [&](ChannelPtr &c) {
-            return c->channelId() == ch->channelId();
-        });
-
-        chs.erase(iterator);
-        return chs.size();
-    }
-
-    Channel *ChannelHolder::getChannel() {
-        return chs[++index % chs.size()].get();
-    }
-
-    int ChannelHolder::removeChannel(uint32_t channelId) {
-        auto iterator = remove_if(chs.begin(), chs.end(), [&](ChannelPtr &c) {
-            return c->channelId() == channelId;
-        });
-
-        chs.erase(iterator);
-        return chs.size();
-    }
-
-
-    ServiceKeeper::ServiceKeeper(const string_view &serv) : serv(serv) {}
+    ServiceKeeper::ServiceKeeper(const string_view &serv) : serv(serv), nextIndex(0) {}
 
     ServiceKeeper::~ServiceKeeper() {
         for (const auto &pair: chMap) {
             // 服务器
             pair.second->removeService(serv);
-            chMap.erase(pair.first);
         }
     }
 
     void ServiceKeeper::servChanged(const std::vector<EndPoint> &eps) {
 
+        vector<EndPoint> toRemove;
         // 不存在的关闭掉
         for (const auto &pair: chMap) {
             bool exits = false;
@@ -73,14 +33,14 @@ namespace sn {
                 }
             }
             if (!exits) {
-                auto channel = pair.second->channel();
-                if (channel) {
-                    removeChannel(channel->channelId());
-                }
-                // 服务器
-                pair.second->removeService(serv);
-                chMap.erase(pair.first);
+                toRemove.push_back(pair.first);
             }
+        }
+
+        for (const auto ep:toRemove) {
+            auto iterator = chMap.find(ep);
+            iterator->second->removeService(serv);
+            chMap.erase(iterator);
         }
 
         // 新增的连接进来
@@ -88,11 +48,16 @@ namespace sn {
             if (chMap.find(ep) == chMap.end()) {
                 auto y = Thread::local<Client>().getServiceChannel(ep);
                 chMap.insert(make_pair(ep, y));
-                addChannel(y->channelPointer());
+                y->addService(serv);
             }
         }
+
+        endPoints = eps;
     }
 
+    Channel *ServiceKeeper::nextChannel() {
+        return chMap[endPoints[++nextIndex % endPoints.size()]]->channel();
+    }
 
 }
 

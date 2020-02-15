@@ -56,7 +56,6 @@ namespace sn {
         }
         bool success = false;
         if (readBytes == shakePkgLen) {
-            LOG(INFO) << "握手包接收完毕,serviceSize:" << serviceSize;
             if (!doShakeHands(firstBuffer, readBytes, serviceSize)) {
                 success = true;
             }
@@ -172,33 +171,36 @@ namespace sn {
                     char t[s.size() + 2];
                     WRITELE_VAL_8(t, s.size());
                     memcpy(t + 1, s.data(), s.size());
-                    WRITELE_VAL_8(t, i);
-                    int topHalf = BUFFER_BUF_LEN - currentBufferUsed;
+                    WRITELE_VAL_8(t + s.size() + 1, i);
+                    uint32_t topHalf = BUFFER_BUF_LEN - currentBufferUsed;
                     memcpy(tmp->buf + currentBufferUsed, t, topHalf);
                     tmp = tmp->next;
                     memcpy(tmp->buf, t + topHalf, s.size() + 2 - topHalf);
                 } else {
                     tmp->buf[currentBufferUsed] = s.size();
                     memcpy(tmp->buf + currentBufferUsed + 1, s.data(), s.size());
-                    tmp->buf[s.size() + 1] = (uint8_t) i;
+                    tmp->buf[currentBufferUsed + s.size() + 1] = (uint8_t) i;
                 }
             } else {
                 tmp = tmp->next;
-                tmp->buf[currentBufferUsed] = s.size();
-                memcpy(tmp->buf + currentBufferUsed + 1, s.data(), s.size());
+                tmp->buf[0] = s.size();
+                memcpy(tmp->buf + 1, s.data(), s.size());
                 tmp->buf[s.size() + 1] = (uint8_t) i;
             }
             writed += s.size() + 2;
         }
 
         assert(writed == retPkgBytes);
-        if (ch->writeMsg(retFirstBuf, 0, retPkgBytes) == -1) {
-            ByteBuf::recycleLen(retFirstBuf, 0, retPkgBytes);
+        int r;
+        if ((r = ch->writeMsg(retFirstBuf, 0, retPkgBytes)) < 0) {
+            if (r == -1) {
+                ByteBuf::recycleLen(retFirstBuf, 0, retPkgBytes);
+            }
             return -1;
         }
 
+        LOG(INFO) << "握手成功,serviceSize:" << serviceSize;
         auto handler = new ClientAppHandler(ch, std::move(servs));
-
         auto pHandler = ch->replaceHandler(handler);
         assert(pHandler == this);
         return 0;
@@ -209,7 +211,8 @@ namespace sn {
     }
 
     int ServerShakeHandsHandler::doShakeHands(Buffer *firstBuf, uint32_t pkgLen, int serviceSize) {
-        vector<ServiceDesc> sds(serviceSize);
+        vector<ServiceDesc> sds;
+        sds.reserve(serviceSize);
 
         int contentLen = (int) pkgLen - 7;
 
@@ -235,36 +238,96 @@ namespace sn {
         }
         assert(leftLen == 0);
 
-        int decodedService = 0;
+        vector<string> servs;
+        servs.reserve(serviceSize);
+
         int decodeBytes = 0;
         while (decodeBytes < contentLen) {
             ServiceDesc desc{};
             desc.name = reinterpret_cast<ServiceNamePtr>(buf + decodeBytes);
+            servs.emplace_back(desc.name->buf, desc.name->len);
             decodeBytes += desc.name->len + 1;
             if (decodeBytes >= contentLen) {
                 return -1;
             }
             desc.param = reinterpret_cast<BodyDescPtr>(buf + decodeBytes);
-            decodeBytes += desc.name->len + 4;
+            decodeBytes += desc.param->len + 4;
             if (decodeBytes >= contentLen) {
                 return -1;
             }
             desc.result = reinterpret_cast<BodyDescPtr>(buf + decodeBytes);
-            decodeBytes += desc.name->len + 4;
+            decodeBytes += desc.result->len + 4;
             sds.push_back(desc);
-            ++decodedService;
         }
         if (decodeBytes != contentLen) {
             return -1;
         }
-        if (decodedService != serviceSize) {
+        if (sds.size() != serviceSize) {
             return -1;
         }
 
         Server server = Thread::local<Server>();
-        // TODO
+        server.addServerAppChannel(ch, sds);
 
+        Buffer *retFirstBuf = tmp = ByteBuf::alloc();
 
+        //计算返回字节数
+        uint32_t retPkgBytes = 6;
+        for (const auto &s:servs) {
+            retPkgBytes += s.size() + 2;
+        }
+
+        int require = retPkgBytes - BUFFER_BUF_LEN;
+        while (require > 0) {
+            tmp->next = ByteBuf::alloc();
+            tmp = tmp->next;
+            require -= BUFFER_BUF_LEN;
+        }
+
+        tmp = retFirstBuf;
+        WRITELE_VAL_32(tmp->buf, retPkgBytes - 4);
+        WRITELE_VAL_16(tmp->buf + 4, serviceSize);
+        uint32_t writed = 6;
+        for (const string &s:servs) {
+            auto currentBufferUsed = writed % BUFFER_BUF_LEN;
+            if (currentBufferUsed) {
+                if (currentBufferUsed + s.size() + 2 > BUFFER_BUF_LEN) {
+                    // 当前buffer剩下的已经不足 以写了
+                    char t[s.size() + 2];
+                    WRITELE_VAL_8(t, s.size());
+                    memcpy(t + 1, s.data(), s.size());
+                    WRITELE_VAL_8(s.size() + 1, 1);
+                    uint32_t topHalf = BUFFER_BUF_LEN - currentBufferUsed;
+                    memcpy(tmp->buf + currentBufferUsed, t, topHalf);
+                    tmp = tmp->next;
+                    memcpy(tmp->buf, t + topHalf, s.size() + 2 - topHalf);
+                } else {
+                    tmp->buf[currentBufferUsed] = s.size();
+                    memcpy(tmp->buf + currentBufferUsed + 1, s.data(), s.size());
+                    tmp->buf[currentBufferUsed + s.size() + 1] = (uint8_t) 1;
+                }
+            } else {
+                tmp = tmp->next;
+                tmp->buf[0] = s.size();
+                memcpy(tmp->buf + 1, s.data(), s.size());
+                tmp->buf[s.size() + 1] = (uint8_t) 1;
+            }
+            writed += s.size() + 2;
+        }
+
+        assert(writed == retPkgBytes);
+        int r;
+        if ((r = ch->writeMsg(retFirstBuf, 0, retPkgBytes)) < 0) {
+            if (r == -1) {
+                ByteBuf::recycleLen(retFirstBuf, 0, retPkgBytes);
+            }
+            return -1;
+        }
+        LOG(INFO) << "握手成功,serviceSize:" << serviceSize;
+
+        auto handler = new ServerAppHandler(ch, std::move(servs));
+        auto pHandler = ch->replaceHandler(handler);
+        assert(pHandler == this);
         return 0;
     }
 }

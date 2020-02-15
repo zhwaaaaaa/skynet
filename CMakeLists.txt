@@ -63,3 +63,4 @@ target_link_libraries(skynet skynetCoreLib)
 
 add_subdirectory("test/thread")
 add_subdirectory("test/event")
+add_subdirectory("test/util")

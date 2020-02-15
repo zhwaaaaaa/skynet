@@ -6,6 +6,44 @@
 #include "server.h"
 
 namespace sn {
+    ChannelHolder::ChannelHolder() : index(0) {}
+
+    ChannelHolder::ChannelHolder(ChannelPtr &first) : index(0) {
+        chs.push_back(first);
+    }
+
+    int ChannelHolder::addChannel(ChannelPtr &ch) {
+
+        for (const ChannelPtr &c:chs) {
+            if (c->channelId() == ch->channelId()) {
+                return chs.size();
+            }
+        }
+        chs.push_back(ch);
+        return chs.size();
+    }
+
+    int ChannelHolder::removeChannel(ChannelPtr &ch) {
+        auto iterator = remove_if(chs.begin(), chs.end(), [&](ChannelPtr &c) {
+            return c->channelId() == ch->channelId();
+        });
+
+        chs.erase(iterator);
+        return chs.size();
+    }
+
+    Channel *ChannelHolder::nextChannel() {
+        return chs[++index % chs.size()].get();
+    }
+
+    int ChannelHolder::removeChannel(uint32_t channelId) {
+        auto iterator = remove_if(chs.begin(), chs.end(), [&](ChannelPtr &c) {
+            return c->channelId() == channelId;
+        });
+
+        chs.erase(iterator);
+        return chs.size();
+    }
 
 
     void Server::addServerAppChannel(ChannelPtr &channelPtr, vector<ServiceDesc> &sds) {

@@ -7,6 +7,7 @@
 #include <thread/thread.h>
 #include <event/client.h>
 #include <event/server.h>
+#include "stream_channel.h"
 
 namespace sn {
 
@@ -139,12 +140,12 @@ namespace sn {
                 uint32_t serverId = req->serverId;
 
                 // find service and send msg;
-                ChannelHolder *serviceKeeper = findOutCh(serviceName);
+                ChannelGroup *serviceKeeper = findOutCh(serviceName);
                 int status = -1;
                 if (serviceKeeper) {
                     auto serviceSize = serviceKeeper->channelSize();
                     for (int i = 0; i < serviceSize; ++i) {
-                        auto pChannel = serviceKeeper->getChannel();
+                        auto pChannel = serviceKeeper->nextChannel();
                         if (pChannel) {
                             status = pChannel->writeMsg(firstReadBuffer, firstBufferOffset, packageLen);
                             if (status != -1) {
@@ -214,9 +215,10 @@ namespace sn {
 
     ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch, vector<string> &&serv)
             : RequestHandler(ch), requiredService(serv) {
+        Thread::local<Client>().addResponseChannel(this->ch);
     }
 
-    ChannelHolder *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {
+    ChannelGroup *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {
         return Thread::local<Client>().getByService(serviceName);
     }
 
@@ -225,6 +227,7 @@ namespace sn {
     }
 
     ClientAppHandler::~ClientAppHandler() {
+        Thread::local<Client>().removeResponseChannel(ch->channelId());
         Client &client = Thread::local<Client>();
         for (const auto &s:requiredService) {
             client.disableService(ch->channelId(), s);
@@ -234,15 +237,22 @@ namespace sn {
     }
 
 
-    ServerReqHandler::ServerReqHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {}
+    ServerReqHandler::ServerReqHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {
+        Thread::local<Server>().addResponseChannel(this->ch);
+    }
 
-    ChannelHolder *ServerReqHandler::findOutCh(ServiceNamePtr serviceName) {
+    ServerReqHandler::~ServerReqHandler() {
+        Thread::local<Server>().removeResponseChannel(ch->channelId());
+    }
+
+    ChannelGroup *ServerReqHandler::findOutCh(ServiceNamePtr serviceName) {
         return Thread::local<Server>().getChannelByService(string_view(serviceName->buf, serviceName->len));
     }
 
     void ServerReqHandler::setResponseChannelId(RequestId *header) {
         header->serverId = ch->channelId();
     }
+
 
     ResponseHandler::ResponseHandler(const shared_ptr<Channel> &ch)
             : ChannelHandler(ch), firstBufferOffset(0), lastBufferUsed(0), readPkgLen(0), packageLen(0),
@@ -359,18 +369,35 @@ namespace sn {
         ch->close();
     }
 
-    ClientResponseHandler::ClientResponseHandler(const shared_ptr<Channel> &ch) : ResponseHandler(ch) {}
+    ClientResponseHandler::ClientResponseHandler(const shared_ptr<Channel> &ch) : ResponseHandler(ch) {
+        // client response handler负责转发server的的返回。
+        // 但它也负责写ClientAppHandler转发的请求
+        // 所以要注册自己的channel到Client上。以便于ClientAppHandler可以使用
+        // 因为对于客户端来说，它需要连到外部的channel上去。所以它一定是TcpChannel
+        TcpChannel<ClientResponseHandler> *channel = dynamic_cast<TcpChannel<ClientResponseHandler> *>(ch.get());
+        auto point = channel->remoteAddr();
+        LOG(INFO) << "ClientResponseHandler() 连到server：" << point;
+        Thread::local<Client>().getServiceChannel(point)->resetChannel(this->ch);
+    }
+
+    ClientResponseHandler::~ClientResponseHandler() {
+        // 当连接断掉了
+        TcpChannel<ClientResponseHandler> *channel = dynamic_cast<TcpChannel<ClientResponseHandler> *>(ch.get());
+        auto point = channel->remoteAddr();
+        LOG(INFO) << "~ClientResponseHandler() 断开server：" << point;
+        Thread::local<Client>().removeServiceChannel(point);
+    }
 
     Channel *ClientResponseHandler::findTransferChannel(ResponseId *responseId) {
         return Thread::local<Client>().getResponseChannel(responseId->clientId);
     }
 
+
     ServerAppHandler::ServerAppHandler(const shared_ptr<Channel> &ch, vector<string> &&provideServs)
             : ResponseHandler(ch), provideServs(provideServs) {}
 
     ServerAppHandler::~ServerAppHandler() {
-        Server &server = Thread::local<Server>();
-        server.removeServerAppChannel(ch, provideServs);
+        Thread::local<Server>().removeServerAppChannel(ch, provideServs);
     }
 
     Channel *ServerAppHandler::findTransferChannel(ResponseId *responseId) {

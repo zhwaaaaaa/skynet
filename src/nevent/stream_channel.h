@@ -221,7 +221,8 @@ namespace sn {
                 return;
             }
 
-            std::vector<uv_buf_t> wes(size);
+            std::vector<uv_buf_t> wes;
+            wes.reserve(size);
 
             for (const WriteEvent &evt: waitingWrite) {
                 if (evt.dataLen <= BUFFER_BUF_LEN - evt.bufferOffset) {
@@ -329,11 +330,11 @@ namespace sn {
     public:
 
         ~TcpChannel() override {
-            LOG(INFO) << "~TcpChannel()";
+            LOG(INFO) << "~TcpChannel() " << raddr;
         }
 
         TcpChannel() {
-            LOG(INFO) << "TcpChannel()";
+            LOG(INFO) << "TcpChannel()" << raddr;
         }
 
         EndPoint remoteAddr() {
