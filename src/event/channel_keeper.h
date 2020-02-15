@@ -49,6 +49,10 @@ namespace sn {
             return channelPtr.get();
         }
 
+        ChannelPtr &channelPointer() {
+            return channelPtr;
+        }
+
         void closeChannel() {
             if (channelPtr.get()) {
                 channelPtr->close();

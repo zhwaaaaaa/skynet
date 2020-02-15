@@ -15,7 +15,7 @@ namespace sn {
 
     class ChannelHandler {
     protected:
-        const ChannelPtr ch;
+        ChannelPtr ch;
     public:
         explicit ChannelHandler(shared_ptr<Channel> ch);
 

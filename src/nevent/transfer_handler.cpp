@@ -6,6 +6,7 @@
 #include <glog/logging.h>
 #include <thread/thread.h>
 #include <event/client.h>
+#include <event/server.h>
 
 namespace sn {
 
@@ -70,9 +71,9 @@ namespace sn {
                 if (firstBufferOffset + headLen > BUFFER_BUF_LEN) {
                     // 发生了header拆包。
                     // 上半个buffer的字节数
-                    int topHalf = BUFFER_BUF_LEN - firstBufferOffset;
+                    uint32_t topHalf = BUFFER_BUF_LEN - firstBufferOffset;
                     memcpy(tmpHead, serviceName, topHalf);
-                    int secondHalf = headLen - topHalf;
+                    uint32_t secondHalf = headLen - topHalf;
                     memcpy(tmpHead + topHalf, firstReadBuffer->next->buf, secondHalf);
                     serviceName = reinterpret_cast<ServiceNamePtr>(tmpHead);
 
@@ -138,10 +139,10 @@ namespace sn {
                 uint32_t serverId = req->serverId;
 
                 // find service and send msg;
-                ServiceKeeper *serviceKeeper = findOutCh(serviceName);
+                ChannelHolder *serviceKeeper = findOutCh(serviceName);
                 int status = -1;
                 if (serviceKeeper) {
-                    auto serviceSize = serviceKeeper->count();
+                    auto serviceSize = serviceKeeper->channelSize();
                     for (int i = 0; i < serviceSize; ++i) {
                         auto pChannel = serviceKeeper->getChannel();
                         if (pChannel) {
@@ -215,7 +216,7 @@ namespace sn {
             : RequestHandler(ch), requiredService(serv) {
     }
 
-    ServiceKeeper *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {
+    ChannelHolder *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {
         return Thread::local<Client>().getByService(serviceName);
     }
 
@@ -224,16 +225,19 @@ namespace sn {
     }
 
     ClientAppHandler::~ClientAppHandler() {
+        Client &client = Thread::local<Client>();
         for (const auto &s:requiredService) {
-            LOG(INFO) << "~ClientAppHandler()" << s;
+            client.disableService(ch->channelId(), s);
+            LOG(INFO) << ch->channelId() << "with ClientAppHandler not require service " << s;
         }
+
     }
 
 
     ServerReqHandler::ServerReqHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {}
 
-    ServiceKeeper *ServerReqHandler::findOutCh(ServiceNamePtr serviceName) {
-        return nullptr;
+    ChannelHolder *ServerReqHandler::findOutCh(ServiceNamePtr serviceName) {
+        return Thread::local<Server>().getChannelByService(string_view(serviceName->buf, serviceName->len));
     }
 
     void ServerReqHandler::setResponseChannelId(RequestId *header) {
@@ -269,7 +273,6 @@ namespace sn {
                 firstReadBuffer = lastReadBuffer;
                 firstBufferOffset = lastBufferUsed;
             }
-
         }
 
         buf->len = BUFFER_BUF_LEN - lastBufferUsed;
@@ -297,9 +300,9 @@ namespace sn {
                 if (firstBufferOffset + RESP_HEADER_LEN > BUFFER_BUF_LEN) {
                     // 发生了header拆包。
                     // 上半个buffer的字节数
-                    int topHalf = BUFFER_BUF_LEN - firstBufferOffset;
+                    uint32_t topHalf = BUFFER_BUF_LEN - firstBufferOffset;
                     memcpy(tmpHead, responseId, topHalf);
-                    int secondHalf = RESP_HEADER_LEN - topHalf;
+                    uint32_t secondHalf = RESP_HEADER_LEN - topHalf;
                     memcpy(tmpHead + topHalf, firstReadBuffer->next->buf, secondHalf);
                     responseId = reinterpret_cast<ResponseId *>(tmpHead);
                 }
@@ -359,12 +362,20 @@ namespace sn {
     ClientResponseHandler::ClientResponseHandler(const shared_ptr<Channel> &ch) : ResponseHandler(ch) {}
 
     Channel *ClientResponseHandler::findTransferChannel(ResponseId *responseId) {
-        return nullptr;
+        return Thread::local<Client>().getResponseChannel(responseId->clientId);
     }
 
-    ServerResponseHandler::ServerResponseHandler(const shared_ptr<Channel> &ch) : ResponseHandler(ch) {}
+    ServerAppHandler::ServerAppHandler(const shared_ptr<Channel> &ch, vector<string> &&provideServs)
+            : ResponseHandler(ch), provideServs(provideServs) {}
 
-    Channel *ServerResponseHandler::findTransferChannel(ResponseId *responseId) {
-        return nullptr;
+    ServerAppHandler::~ServerAppHandler() {
+        Server &server = Thread::local<Server>();
+        server.removeServerAppChannel(ch, provideServs);
     }
+
+    Channel *ServerAppHandler::findTransferChannel(ResponseId *responseId) {
+        return Thread::local<Server>().getResponseChannel(responseId->serverId);
+    }
+
+
 }

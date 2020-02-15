@@ -70,7 +70,7 @@ namespace sn {
 
         void onError(const uv_buf_t *buf) override;
 
-        virtual ServiceKeeper *findOutCh(ServiceNamePtr serviceName) = 0;
+        virtual ChannelHolder *findOutCh(ServiceNamePtr serviceName) = 0;
 
         virtual void setResponseChannelId(RequestId *header) = 0;
 
@@ -87,7 +87,7 @@ namespace sn {
 
     protected:
 
-        ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;
+        ChannelHolder *findOutCh(ServiceNamePtr serviceName) override;
 
         void setResponseChannelId(RequestId *header) override;
 
@@ -99,7 +99,7 @@ namespace sn {
         explicit ServerReqHandler(const shared_ptr<Channel> &ch);
 
     private:
-        ServiceKeeper *findOutCh(ServiceNamePtr serviceName) override;
+        ChannelHolder *findOutCh(ServiceNamePtr serviceName) override;
 
         void setResponseChannelId(RequestId *header) override;
     };
@@ -131,6 +131,9 @@ namespace sn {
 
     };
 
+    /**
+     * Client 转发Server返回的数据
+     */
     class ClientResponseHandler : public ResponseHandler {
     public:
         explicit ClientResponseHandler(const shared_ptr<Channel> &ch);
@@ -139,9 +142,16 @@ namespace sn {
         Channel *findTransferChannel(ResponseId *responseId) override;
     };
 
-    class ServerResponseHandler : public ResponseHandler {
+    /**
+     * Server转发服务接受方返回的数据，服务器连上来的
+     */
+    class ServerAppHandler : public ResponseHandler {
+    private:
+        vector<string> provideServs;
     public:
-        explicit ServerResponseHandler(const shared_ptr<Channel> &ch);
+        ServerAppHandler(const shared_ptr<Channel> &ch, vector<string> &&provideServs);
+
+        ~ServerAppHandler() override;
 
     protected:
         Channel *findTransferChannel(ResponseId *responseId) override;

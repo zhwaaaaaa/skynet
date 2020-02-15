@@ -13,8 +13,6 @@
 
 namespace sn {
     using namespace std;
-    using namespace __gnu_cxx;
-
 
     typedef void (*SubscribeFunc)(const string_view &, const vector<EndPoint> &, bool hashNext, void *param);
 

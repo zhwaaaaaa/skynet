@@ -118,4 +118,22 @@ namespace sn {
 
     }
 
+    Channel *Client::getResponseChannel(uint32_t channelId) {
+        auto iterator = responseChs.find(channelId);
+        if (iterator != responseChs.end()) {
+            return iterator->second.get();
+        }
+        return nullptr;
+    }
+
+    void Client::addResponseChannel(ChannelPtr &respCh) {
+        responseChs.insert(make_pair(respCh->channelId(), respCh));
+    }
+
+    void Client::removeResponseChannel(uint32_t channelId) {
+        auto iterator = responseChs.find(channelId);
+        assert(iterator != responseChs.end());
+        responseChs.erase(iterator);
+    }
+
 }

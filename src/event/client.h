@@ -22,6 +22,7 @@ namespace sn {
     private:
         hash_map<string_view, shared_ptr<ServiceKeeper>> serviceMap;
         hash_map<EndPoint, shared_ptr<ChannelKeeper>> channelMap;
+        hash_map<uint32_t, ChannelPtr> responseChs;
     protected:
 
         void onLoopStart() override {
@@ -37,15 +38,21 @@ namespace sn {
 
         ServiceKeeper *getByService(ServiceNamePtr serv);
 
-        void addServiceChannel(const EndPoint endPoint);
+        void addServiceChannel(EndPoint endPoint);
 
-        shared_ptr<ChannelKeeper> getServiceChannel(EndPoint endPoint) override;
+        shared_ptr<ChannelKeeper> getServiceChannel(EndPoint endPoint);
 
-        void removeServiceChannel(const EndPoint endPoint) override;
+        void removeServiceChannel(EndPoint endPoint);
 
         int enableService(uint32_t channelId, const string_view &key);
 
         int disableService(uint32_t channelId, const string_view &key);
+
+        Channel *getResponseChannel(uint32_t channelId);
+
+        void addResponseChannel(ChannelPtr &respCh);
+
+        void removeResponseChannel(uint32_t channelId);
 
     };
 }

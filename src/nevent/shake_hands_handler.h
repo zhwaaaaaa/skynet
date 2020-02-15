@@ -60,9 +60,12 @@ namespace sn {
         int doShakeHands(Buffer *firstBuf, uint32_t pkgLen, int serviceSize) override;
     };
 
+
+
     class ServerShakeHandsHandler : public ShakeHandsHandler {
     public:
         explicit ServerShakeHandsHandler(const shared_ptr<Channel> &ch);
+
     protected:
         int doShakeHands(Buffer *firstBuf, uint32_t pkgLen, int serviceSize) override;
     };

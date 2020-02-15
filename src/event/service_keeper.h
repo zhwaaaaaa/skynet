@@ -14,15 +14,34 @@
 namespace sn {
     using namespace std;
 
-    class ServiceKeeper {
+    class ChannelHolder {
+    private:
+        uint32_t index;
+    protected:
+        vector<ChannelPtr> chs;
+    public:
+        ChannelHolder();
 
+        explicit ChannelHolder(ChannelPtr &first);
 
+        int addChannel(ChannelPtr &ch);
+
+        int removeChannel(ChannelPtr &ch);
+
+        int removeChannel(uint32_t channelId);
+
+        Channel *getChannel();
+
+        int channelSize() const {
+            return chs.size();
+        }
+    };
+
+    class ServiceKeeper : public ChannelHolder {
     private:
         const string_view serv;
         hash_set<uint32_t> careCh;
         hash_map<EndPoint, shared_ptr<ChannelKeeper>> chMap;
-        vector<EndPoint> currentEps;
-        uint32_t lastIndex;
 
     public:
         explicit ServiceKeeper(const string_view &serv);
@@ -44,7 +63,6 @@ namespace sn {
             return false;
         }
 
-        Channel *getChannel();
 
         int count() {
             return careCh.size();

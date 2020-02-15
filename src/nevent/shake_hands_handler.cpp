@@ -2,6 +2,7 @@
 // Created by dear on 2020/2/10.
 //
 
+#include <event/server.h>
 #include "shake_hands_handler.h"
 #include "transfer_handler.h"
 
@@ -38,7 +39,8 @@ namespace sn {
         ShakeHandsHeader *header = reinterpret_cast<ShakeHandsHeader *>(firstBuffer->buf);
         if (!shakePkgLen) {
             shakePkgLen = CONVERT_VAL_32(header->len) + 4;
-            if (SERVICE_TYPE_CLIENT != header->shakeType) {
+            if (SERVICE_TYPE_CLIENT != header->shakeType
+                && SERVICE_TYPE_SERVER != header->shakeType) {
                 ch->close();
                 return -1;
             }
@@ -207,6 +209,62 @@ namespace sn {
     }
 
     int ServerShakeHandsHandler::doShakeHands(Buffer *firstBuf, uint32_t pkgLen, int serviceSize) {
+        vector<ServiceDesc> sds(serviceSize);
+
+        int contentLen = (int) pkgLen - 7;
+
+        char *buf = static_cast<char *>(malloc(contentLen));
+        if (!buf) {
+            return -1;
+        }
+        auto delFree = [](char *b) {
+            free(b);
+        };
+        unique_ptr<char, decltype(delFree)> guard(buf, delFree);
+
+        int leftLen = contentLen;
+        Buffer *tmp = firstBuf;
+        int cpLen = min((int) BUFFER_BUF_LEN - 7, leftLen);
+        memcpy(buf + contentLen - leftLen, tmp->buf + 7, cpLen);
+        leftLen -= cpLen;
+        while (leftLen > 0) {
+            tmp = tmp->next;
+            cpLen = min((int) BUFFER_BUF_LEN, leftLen);
+            memcpy(buf + contentLen - leftLen, tmp->buf, cpLen);
+            leftLen -= cpLen;
+        }
+        assert(leftLen == 0);
+
+        int decodedService = 0;
+        int decodeBytes = 0;
+        while (decodeBytes < contentLen) {
+            ServiceDesc desc{};
+            desc.name = reinterpret_cast<ServiceNamePtr>(buf + decodeBytes);
+            decodeBytes += desc.name->len + 1;
+            if (decodeBytes >= contentLen) {
+                return -1;
+            }
+            desc.param = reinterpret_cast<BodyDescPtr>(buf + decodeBytes);
+            decodeBytes += desc.name->len + 4;
+            if (decodeBytes >= contentLen) {
+                return -1;
+            }
+            desc.result = reinterpret_cast<BodyDescPtr>(buf + decodeBytes);
+            decodeBytes += desc.name->len + 4;
+            sds.push_back(desc);
+            ++decodedService;
+        }
+        if (decodeBytes != contentLen) {
+            return -1;
+        }
+        if (decodedService != serviceSize) {
+            return -1;
+        }
+
+        Server server = Thread::local<Server>();
+        // TODO
+
+
         return 0;
     }
 }

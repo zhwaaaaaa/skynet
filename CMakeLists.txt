@@ -19,6 +19,8 @@ set(SOURCE_FILES
         #registry
         src/registry/naming_server.h
         src/registry/naming_server.cpp
+        src/registry/server_publisher.cpp
+        src/registry/server_publisher.h
         #util
         src/util/buffer.h
         src/util/endpoint.cpp

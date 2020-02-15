@@ -48,10 +48,6 @@ namespace sn {
 
         void stop();
 
-        virtual shared_ptr<ChannelKeeper> getServiceChannel(const EndPoint endPoint) = 0;
-
-        virtual void removeServiceChannel(const EndPoint endPoint) = 0;
-
     };
 
 }
