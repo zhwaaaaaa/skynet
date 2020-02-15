@@ -199,7 +199,7 @@ namespace sn {
             return -1;
         }
 
-        LOG(INFO) << "握手成功,serviceSize:" << serviceSize;
+        LOG(INFO) << "Client握手成功,serviceSize:" << serviceSize;
         auto handler = new ClientAppHandler(ch, std::move(servs));
         auto pHandler = ch->replaceHandler(handler);
         assert(pHandler == this);
@@ -266,8 +266,7 @@ namespace sn {
             return -1;
         }
 
-        Server server = Thread::local<Server>();
-        server.addServerAppChannel(ch, sds);
+        Thread::local<Server>().addServerAppChannel(ch, sds);
 
         Buffer *retFirstBuf = tmp = ByteBuf::alloc();
 
@@ -323,7 +322,7 @@ namespace sn {
             }
             return -1;
         }
-        LOG(INFO) << "握手成功,serviceSize:" << serviceSize;
+        LOG(INFO) << "Server握手成功,serviceSize:" << serviceSize;
 
         auto handler = new ServerAppHandler(ch, std::move(servs));
         auto pHandler = ch->replaceHandler(handler);

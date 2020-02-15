@@ -139,6 +139,7 @@ namespace sn {
                 uint32_t clientId = req->clientId;
                 uint32_t serverId = req->serverId;
 
+
                 // find service and send msg;
                 ChannelGroup *serviceKeeper = findOutCh(serviceName);
                 int status = -1;

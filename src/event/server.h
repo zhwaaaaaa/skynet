@@ -9,20 +9,23 @@
 #include "service_keeper.h"
 
 namespace sn {
-    using ServiceNamePtr = Segment<uint8_t> *;
-    using BodyDescPtr = Segment<uint32_t> *;
+    using ServiceNamePtr = Segment <uint8_t> *;
+    using BodyDescPtr = Segment <uint32_t> *;
     struct ServiceDesc {
         ServiceNamePtr name;
         BodyDescPtr param;
         BodyDescPtr result;
     };
+
     class ChannelHolder : public ChannelGroup {
     private:
         uint32_t index;
     protected:
-        vector<ChannelPtr> chs;
+        vector <ChannelPtr> chs;
     public:
         ChannelHolder();
+
+        ~ChannelHolder();
 
         explicit ChannelHolder(ChannelPtr &first);
 
@@ -41,7 +44,7 @@ namespace sn {
 
     class Server : public Reactor {
     private:
-        hash_map<string_view, shared_ptr<ChannelHolder>> serverAppChs;
+        hash_map<string_view, shared_ptr < ChannelHolder>> serverAppChs;
         hash_map<uint32_t, ChannelPtr> responseChs;
     protected:
         void onLoopStart() override {
@@ -49,9 +52,9 @@ namespace sn {
         }
 
     public:
-        void addServerAppChannel(ChannelPtr &channelPtr, vector<ServiceDesc> &sds);
+        void addServerAppChannel(ChannelPtr &channelPtr, vector <ServiceDesc> &sds);
 
-        void removeServerAppChannel(ChannelPtr &channelPtr, vector<string> &sds);
+        void removeServerAppChannel(ChannelPtr &channelPtr, vector <string> &sds);
 
         ChannelHolder *getChannelByService(const string_view &serv);
 

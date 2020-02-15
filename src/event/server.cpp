@@ -6,7 +6,13 @@
 #include "server.h"
 
 namespace sn {
-    ChannelHolder::ChannelHolder() : index(0) {}
+    ChannelHolder::ChannelHolder() : index(0) {
+        LOG(INFO) << "ChannelHolder()";
+    }
+
+    ChannelHolder::~ChannelHolder() {
+        LOG(INFO) << "~ChannelHolder()";
+    }
 
     ChannelHolder::ChannelHolder(ChannelPtr &first) : index(0) {
         chs.push_back(first);
@@ -61,7 +67,7 @@ namespace sn {
                 servName[sd.name->len] = '\0';
                 string_view x(servName, sd.name->len);
                 serverAppChs.insert(make_pair(x, make_shared<ChannelHolder>(channelPtr)));
-
+                LOG(INFO) << "Server app 注册服务成功:" << x << "当前" << serverAppChs.size() << "个服务注册";
                 //TODO register to etcd
             }
         }
@@ -74,6 +80,8 @@ namespace sn {
                 auto i = iterator->second->removeChannel(channelPtr);
                 if (i == 0) {
                     const char *key = iterator->first.data();
+                    LOG(INFO) << "取消注册提供的服务:" << iterator->first << ",当前剩余" << serverAppChs.size() << "个服务";
+                    // TODO unregistry to ETCD
                     serverAppChs.erase(iterator);
                     free((void *) key);
                 }
@@ -86,6 +94,7 @@ namespace sn {
         if (iterator != serverAppChs.end()) {
             return iterator->second.get();
         }
+        LOG(INFO) << "在" << serverAppChs.size() << "个中没找到ServerApp的channel:" << serv;
         return nullptr;
     }
 
