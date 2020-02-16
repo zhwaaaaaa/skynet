@@ -34,11 +34,9 @@ namespace sn {
             }
             // 包已经解析完了。并且这个包也已经快满了，没有必要重用了。
             if (lastBufferUsed + 256 > BUFFER_BUF_LEN) {
-                lastReadBuffer = ByteBuf::alloc();
-                lastBufferUsed = 0;
                 // 因为还没解析的字节数为0，所以，读指针和写指针相同
-                firstReadBuffer = lastReadBuffer;
-                firstBufferOffset = lastBufferUsed;
+                lastReadBuffer = firstReadBuffer = ByteBuf::alloc();
+                firstBufferOffset = lastBufferUsed = 0;
             }
 
         }
@@ -48,7 +46,6 @@ namespace sn {
     }
 
     int RequestHandler::onMessage(const uv_buf_t *buf, ssize_t nread) {
-
         lastBufferUsed += nread;
         readPkgLen += nread;
 
@@ -82,32 +79,32 @@ namespace sn {
                     packageLen = headLen + CONVERT_VAL_32(pHeader->bodyLen);
                     setResponseChannelId(pHeader);
 
+                    // clientId或者serverId的字段发生了修改。所以需要复制。
+                    // 本来只有4个字节发生了修改。但是为了方便，把所有可能发生修改的8个字节都复制到buffer中
                     int headerBeforeClientIdLen = serviceLen + offsetof(RequestId, clientId) + 1;
                     // [prevPkg][headerBeforeClientId][clientId][serverId][1:bodyType][4:bodyLen]
                     //          |              topHalf               |      secondHalf
                     //    firstBufferOffset                    firstBufferEnd
                     int firstBufferCopyLen = topHalf - headerBeforeClientIdLen;
-                    if (firstBufferCopyLen > 0) {
+                    if (firstBufferCopyLen >= 8) {
+                        // 复制的内容全部都在前半段。
+                        memcpy(firstReadBuffer->buf + firstBufferOffset + headerBeforeClientIdLen,
+                               tmpHead + headerBeforeClientIdLen,
+                               8);//有可能超过8字节也没有关系。
+                    } else if (firstBufferCopyLen > 0) {
                         //说明clientId,serverId 被拆开了，因为着两个字段有修改。所以需要复制两个buffer
                         //[prevPkg][headerBeforeClientId][clientId][serverId]
                         memcpy(firstReadBuffer->buf + firstBufferOffset + headerBeforeClientIdLen,
                                tmpHead + headerBeforeClientIdLen,
-                               firstBufferCopyLen);//有可能超过8字节也没有关系。后边最多还有5个字节
+                               firstBufferCopyLen);//前半段复制一部分
+                        memcpy(firstReadBuffer->next->buf, tmpHead + headerBeforeClientIdLen + firstBufferCopyLen,
+                               8 - firstBufferCopyLen);// 后半段复制一部分，加起来8个字节
+                    } else {
+                        // 复制的内容全部都在后段。firstBufferCopyLen<=0的,复制的内容可能不是第二个buffer的第一个字节
+                        memcpy(firstReadBuffer->next->buf - firstBufferCopyLen,
+                               tmpHead + headerBeforeClientIdLen, 8);
                     }
-                    // 因为最多复制8个字节 如果上一个buffer都复制完了，这个就不用复制了
-                    if (firstBufferCopyLen < 8) {
-                        if (firstBufferCopyLen < 0) {
-                            // 上一个buffer一点都没复制，这个buffer就复制8个字节
-                            memcpy(firstReadBuffer->next->buf - firstBufferCopyLen,// 头
-                                   tmpHead + headerBeforeClientIdLen,
-                                   8);
-                        } else {
-                            memcpy(firstReadBuffer->next->buf,// 头
-                                   tmpHead + headerBeforeClientIdLen,
-                                   secondHalf - 5);//至少有5个字节不用复制
-                        }
 
-                    }
                 } else {
                     auto pHeader = serviceName->last<RequestId>();
                     packageLen = headLen + CONVERT_VAL_32(pHeader->bodyLen);
@@ -278,11 +275,9 @@ namespace sn {
             }
             // 包已经解析完了。并且这个包也已经快满了，没有必要重用了。
             if (lastBufferUsed + 256 > BUFFER_BUF_LEN) {
-                lastReadBuffer = ByteBuf::alloc();
-                lastBufferUsed = 0;
                 // 因为还没解析的字节数为0，所以，读指针和写指针相同
-                firstReadBuffer = lastReadBuffer;
-                firstBufferOffset = lastBufferUsed;
+                lastReadBuffer = firstReadBuffer = ByteBuf::alloc();
+                firstBufferOffset = lastBufferUsed = 0;
             }
         }
 
@@ -295,17 +290,19 @@ namespace sn {
         lastBufferUsed += nread;
         readPkgLen += nread;
 
-        ResponseId *responseId;
         while (readPkgLen && readPkgLen >= packageLen) {
-            responseId = reinterpret_cast<ResponseId *>(firstReadBuffer->buf + firstBufferOffset);
+            ResponseId *responseId = reinterpret_cast<ResponseId *>(firstReadBuffer->buf + firstBufferOffset);
             if (RESP_HEADER_CONTENT_LEN != CONVERT_VAL_8(responseId->headerLen)) {
+                LOG(WARNING) << "response head len !=" << RESP_HEADER_CONTENT_LEN;
                 // resp header 固定18个字节
+                ch->close();
+                return -1;
             }
 
             if (!packageLen) {
                 if (readPkgLen < RESP_HEADER_LEN) {
                     // 还不够19个字节
-                    break;
+                    return 0;
                 }
 
                 if (firstBufferOffset + RESP_HEADER_LEN > BUFFER_BUF_LEN) {
@@ -313,13 +310,15 @@ namespace sn {
                     // 上半个buffer的字节数
                     uint32_t topHalf = BUFFER_BUF_LEN - firstBufferOffset;
                     memcpy(tmpHead, responseId, topHalf);
-                    uint32_t secondHalf = RESP_HEADER_LEN - topHalf;
-                    memcpy(tmpHead + topHalf, firstReadBuffer->next->buf, secondHalf);
+                    memcpy(tmpHead + topHalf, firstReadBuffer->next->buf, RESP_HEADER_LEN - topHalf);
                     responseId = reinterpret_cast<ResponseId *>(tmpHead);
                 }
 
                 packageLen = RESP_HEADER_LEN + CONVERT_VAL_32(responseId->bodyLen);
             } else {
+                if (tmpHead[0]) {
+                    responseId = reinterpret_cast<ResponseId *>(tmpHead);
+                }
 
                 // 从第一个buffer到消息的最后一个字节的长度.
                 uint32_t firstBufferToMsgEndLen = packageLen + firstBufferOffset;
@@ -343,6 +342,7 @@ namespace sn {
 
                 readPkgLen -= packageLen;
                 packageLen = 0;
+                tmpHead[0] = 0;
 
                 firstReadBuffer = msgLastBuffer;
                 firstBufferOffset = firstBufferToMsgEndLen;

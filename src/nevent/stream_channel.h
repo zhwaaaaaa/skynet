@@ -129,7 +129,9 @@ namespace sn {
             if (writingQue.empty() && len < 212992) {
 
                 if (len <= BUFFER_BUF_LEN - firstOffset) {
-                    uv_buf_t buf = {buffer->buf + firstOffset, len};
+                    uv_buf_t buf;
+                    buf.base = buffer->buf + firstOffset;
+                    buf.len = len;
                     writed = uv_try_write((uv_stream_t *) &handle, &buf, 1);
                 } else {
                     auto exceptFirst = len - (BUFFER_BUF_LEN - firstOffset);
@@ -144,7 +146,7 @@ namespace sn {
                     for (int i = 1; i < bufSize - 1; ++i) {
                         tmp = tmp->next;
                         buf[i].len = BUFFER_BUF_LEN;
-                        buf[i].base = buffer->buf;
+                        buf[i].base = tmp->buf;
                     }
 
                     tmp = tmp->next;
