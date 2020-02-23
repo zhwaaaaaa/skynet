@@ -42,9 +42,7 @@ namespace sn {
                 pool.size--;
             } else {
                 buffer = static_cast<Buffer *>(malloc(BUFFER_SIZE));
-                LOG(INFO) << "--------alloc------ ";
             }
-            buffer->next = nullptr;
             buffer->refCount = 1;
             buffer->next = nullptr;
             return buffer;

@@ -80,7 +80,8 @@ namespace sn {
                 auto i = iterator->second->removeChannel(channelPtr);
                 if (i == 0) {
                     const char *key = iterator->first.data();
-                    LOG(INFO) << "取消注册提供的服务:" << iterator->first << ",当前剩余" << serverAppChs.size() << "个服务";
+                    LOG(INFO) << "取消注册提供的服务:" << iterator->first << ",当前剩余"
+                              << (serverAppChs.size() - 1) << "个服务";
                     // TODO unregistry to ETCD
                     serverAppChs.erase(iterator);
                     free((void *) key);
