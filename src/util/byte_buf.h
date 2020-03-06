@@ -6,7 +6,7 @@
 #define SKYNET_BYTEBUF_H
 
 #include <cstddef>
-#include <uv-unix.h>
+#include <uv.h>
 #include <cassert>
 #include "buffer.h"
 #include <glog/logging.h>
@@ -49,7 +49,7 @@ namespace sn {
         }
 
         static void recycleLen(Buffer *buffer, uint32_t firstOffset, uint32_t len) {
-            int rLen = BUFFER_BUF_LEN - firstOffset;
+            uint32_t rLen = BUFFER_BUF_LEN - firstOffset;
             Buffer *tmp = buffer;
             Buffer *next = tmp->next;
             while (len > rLen) {

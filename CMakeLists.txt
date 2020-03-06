@@ -30,6 +30,8 @@ set(SOURCE_FILES
         src/util/func_time.cpp
         src/util/byte_buf.h
         src/util/byte_buf.cpp
+        src/util/IoBuf.h
+        src/util/IoBuf.cpp
         #third_part
         src/util/third_part/superfasthash/superfasthash.c
         # new event
