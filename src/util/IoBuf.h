@@ -13,11 +13,7 @@
 
 namespace sn {
 
-    struct Block;
-
     struct Block {
-        uint32_t start;
-        uint32_t end;
         uint32_t ref;
         Block *next;
         char buf[];
@@ -25,11 +21,6 @@ namespace sn {
 
     constexpr unsigned int BLOCK_SIZE = 65536;
     constexpr unsigned int BLOCK_DATA_LEN = BLOCK_SIZE - offsetof(Block, buf);
-
-#define BLOCK_CAN_WRITE_SIZE(block) (BLOCK_DATA_LEN - (block)->end)
-#define BLOCK_WRITE_PTR(block) (block->buf + block->end)
-#define BLOCK_CAN_READ_SIZE(block) (block->end - block->start)
-#define BLOCK_READ_PTR(block) (block->buf + block->start)
 
     class BlockPool {
     private:
@@ -163,36 +154,35 @@ namespace sn {
         template<typename T>
         void modifyData(const T &v, uint32_t offset = 0) {
             CHECK(size >= sizeof(T) + offset);
-            Block *f = head;
-            unsigned int fOffset = f->start;
-
-            while (offset) {
-                uint32_t len = BLOCK_CAN_READ_SIZE(f);
-                if (offset < len) {
-                    fOffset += offset;
-                    break;
-                } else {
-                    offset -= len;
-                    f = f->next;
-                    fOffset = f->start;
+            Block *tmp = head;
+            if (offset) {
+                offset += headOffset;
+                Block *next = tmp->next;
+                while (offset >= BLOCK_DATA_LEN) {
+                    CHECK(next);
+                    tmp = next;
+                    next = tmp->next;
+                    offset -= BLOCK_DATA_LEN;
                 }
+            } else {
+                offset = headOffset;
             }
 
             char *src = &v;
-            if (sizeof(T) <= BLOCK_CAN_READ_SIZE(f)) {
-                memcpy(f->buf + fOffset, src, sizeof(T));
+            if (sizeof(T) + offset <= BLOCK_DATA_LEN) {
+                memcpy(tmp->buf + offset, src, sizeof(T));
                 return;
             }
 
-            uint32_t n = BLOCK_CAN_READ_SIZE(f);
-            memcpy(f->buf + fOffset, src, n);
+            uint32_t n = BLOCK_DATA_LEN - offset;
+            memcpy(tmp->buf + offset, src, n);
 
             int t = n;
             int left = sizeof(T) - n;
             do {
-                f = f->next;
-                n = std::min(left, (int) BLOCK_CAN_READ_SIZE(f));
-                memcpy(BLOCK_READ_PTR(f), src + t, n);
+                tmp = tmp->next;
+                n = std::min(left, (int) BLOCK_DATA_LEN);
+                memcpy(tmp->buf, src + t, n);
                 t += n;
                 left -= n;
             } while (left);
@@ -207,8 +197,6 @@ namespace sn {
             buf.clearAll();
             CHECK(len > 0 && len <= size);
             buf.head = head;
-
-
         }
 
         /**
@@ -220,11 +208,25 @@ namespace sn {
          */
         template<class T>
         inline void convertObj(T **t, uint32_t offset = 0) {
-            CHECK(head);
-            if (BLOCK_CAN_READ_SIZE(head) < sizeof(T) + offset) {
-                *t = nullptr;
+            CHECK(size >= offset + sizeof(T));
+            Block *tmp = head;
+            if (offset) {
+                offset += headOffset;
+                Block *next = tmp->next;
+                while (offset >= BLOCK_DATA_LEN) {
+                    CHECK(next);
+                    tmp = next;
+                    next = tmp->next;
+                    offset -= BLOCK_DATA_LEN;
+                }
+            } else {
+                offset = headOffset;
             }
-            *t = reinterpret_cast<T *>(BLOCK_READ_PTR(head));
+            if (offset + sizeof(T) > BLOCK_DATA_LEN) {
+                *t = nullptr;
+            } else {
+                *t = reinterpret_cast<T *>(tmp->buf + offset);
+            }
         }
 
         /**
@@ -237,36 +239,35 @@ namespace sn {
         template<class T>
         void copyInto(T *v, uint32_t offset = 0) {
             CHECK(size >= sizeof(T) + offset);
-            Block *f = head;
-            unsigned int fOffset = f->start;
-
-            while (offset) {
-                uint32_t len = BLOCK_CAN_READ_SIZE(f);
-                if (offset < len) {
-                    fOffset += offset;
-                    break;
-                } else {
-                    offset -= len;
-                    f = f->next;
-                    fOffset = f->start;
+            Block *tmp = head;
+            if (offset) {
+                offset += headOffset;
+                Block *next = tmp->next;
+                while (offset >= BLOCK_DATA_LEN) {
+                    CHECK(next);
+                    tmp = next;
+                    next = tmp->next;
+                    offset -= BLOCK_DATA_LEN;
                 }
+            } else {
+                offset = headOffset;
             }
 
-            char *dst = reinterpret_cast<char *>(v);
-            if (sizeof(T) <= BLOCK_CAN_READ_SIZE(f)) {
-                memcpy(dst, f->buf + fOffset, sizeof(T));
+            char *dst = &v;
+            if (sizeof(T) + offset <= BLOCK_DATA_LEN) {
+                memcpy(dst, tmp->buf + offset, sizeof(T));
                 return;
             }
 
-            uint32_t n = BLOCK_CAN_READ_SIZE(f);
-            memcpy(f->buf + fOffset, dst, n);
+            uint32_t n = BLOCK_DATA_LEN - offset;
+            memcpy(dst, tmp->buf + offset, n);
 
             int t = n;
             int left = sizeof(T) - n;
             do {
-                f = f->next;
-                n = std::min(left, (int) BLOCK_CAN_READ_SIZE(f));
-                memcpy(dst + t, BLOCK_READ_PTR(f), n);
+                tmp = tmp->next;
+                n = std::min(left, (int) BLOCK_DATA_LEN);
+                memcpy(dst + t, tmp->buf, n);
                 t += n;
                 left -= n;
             } while (left);

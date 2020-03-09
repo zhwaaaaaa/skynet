@@ -23,7 +23,6 @@ namespace sn {
 
         b->ref = 1;
         b->next = nullptr;
-        b->start = b->end = 0;
         return b;
     }
 
