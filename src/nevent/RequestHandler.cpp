@@ -6,7 +6,6 @@
 #include <event/client.h>
 #include <event/server.h>
 #include "RequestHandler.h"
-#include "ResponseHandler.h"
 
 namespace sn {
     RequestHandler::RequestHandler(const shared_ptr<Channel> &ch)
