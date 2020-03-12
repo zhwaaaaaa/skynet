@@ -48,7 +48,8 @@ set(SOURCE_FILES
         src/nevent/shake_hands_handler.cpp
         src/nevent/shake_hands_handler.h
         src/nevent/RequestHandler.cpp
-        src/nevent/RequestHandler.h)
+        src/nevent/RequestHandler.h
+        src/nevent/TcpChannel.h)
 
 set(THREAD_FILES
         #thread

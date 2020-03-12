@@ -10,6 +10,7 @@
 #include <cstring>
 #include <algorithm>
 #include <glog/logging.h>
+#include <uv.h>
 
 namespace sn {
 
@@ -47,6 +48,9 @@ namespace sn {
         uint32_t size;
         uint32_t capacity;
     public:
+        IoBuf &operator=(IoBuf &) = delete;
+
+    public:
         IoBuf() : head(nullptr), tail(nullptr), headOffset(0), tailOffset(0), size(0), capacity(0) {
         }
 
@@ -71,6 +75,7 @@ namespace sn {
         ~IoBuf() {
             clearAll();
         }
+
 
         /**
          * 清掉所有的Block。变成一个空结构
@@ -420,6 +425,34 @@ namespace sn {
             return (uint8_t) head->buf[offset];
         }
 
+        uint32_t dataBlockSize() {
+            uint32_t sizeAndHead = headOffset + size;
+            auto i = sizeAndHead / BLOCK_DATA_LEN;
+            return tailOffset ? i + 1 : i;
+        }
+
+        void dataPtr(uv_buf_t *uvBuf, size_t len) {
+            CHECK(len > 1);
+            uvBuf->base = head->buf + headOffset;
+            uvBuf->len = BLOCK_DATA_LEN - headOffset;
+
+            Block *tmp = head->next;
+            auto lastIndex = len - 1;
+            for (int i = 1; i < lastIndex; ++i) {
+                CHECK(tmp);
+                uvBuf[i].base = tmp->buf;
+                uvBuf[i].len = BLOCK_DATA_LEN;
+                tmp = tmp->next;
+            }
+            CHECK(tmp);
+            uvBuf[lastIndex].base = tmp->buf;
+            uvBuf[lastIndex].len = tailOffset;
+        }
+
+        void firstDataPtr(uv_buf_t &uvBuf) {
+            uvBuf.base = head->buf + headOffset;
+            uvBuf.len = BLOCK_DATA_LEN - headOffset;
+        }
 
     };
 

@@ -6,9 +6,7 @@
 #define SKYNET_STREAM_CHANNEL_H
 
 #include <glog/logging.h>
-#include <cassert>
 #include "channel.h"
-#include "io_error.h"
 #include "channel_handler.h"
 #include <vector>
 #include <queue>
@@ -122,38 +120,23 @@ namespace sn {
                 // recycleWrited(buffer, firstOffset, len);
                 return -1;
             }
+            int len = buf.getSize();
 
             int writed = 0;
 
             // tryWrite 不能写过多数据。因为缓冲区写满了就无法再写了.208K
             if (writingQue.empty() && buf.getSize() < 212992) {
 
-                if (len <= BUFFER_BUF_LEN - firstOffset) {
-                    uv_buf_t buf;
-                    buf.base = buffer->buf + firstOffset;
-                    buf.len = len;
-                    writed = uv_try_write((uv_stream_t *) &handle, &buf, 1);
+                auto blockSize = buf.dataBlockSize();
+
+                if (blockSize == 1) {
+                    uv_buf_t uvBuf;
+                    buf.firstDataPtr(uvBuf);
+                    writed = uv_try_write((uv_stream_t *) &handle, &uvBuf, 1);
                 } else {
-                    auto exceptFirst = len - (BUFFER_BUF_LEN - firstOffset);
-                    auto tailLen = exceptFirst % BUFFER_BUF_LEN;
-                    uint32_t bufSize = exceptFirst / BUFFER_BUF_LEN + (tailLen == 0 ? 1 : 2);
-
-                    uv_buf_t buf[bufSize];
-
-                    Buffer *tmp = buffer;
-                    buf[0] = {tmp->buf + firstOffset, BUFFER_BUF_LEN - firstOffset};
-
-                    for (int i = 1; i < bufSize - 1; ++i) {
-                        tmp = tmp->next;
-                        buf[i].len = BUFFER_BUF_LEN;
-                        buf[i].base = tmp->buf;
-                    }
-
-                    tmp = tmp->next;
-                    buf[bufSize - 1] = {tmp->buf, tailLen};
-                    writed = uv_try_write((uv_stream_t *) &handle, buf, bufSize);
+                    uv_buf_t uvBuf[blockSize];
+                    writed = uv_try_write((uv_stream_t *) &handle, uvBuf, blockSize);
                 }
-
 
                 if (writed == UV_EAGAIN) {
                     // 到这里的概率很小.
@@ -164,10 +147,9 @@ namespace sn {
                     // 返回eof调用者还可以找另一个channel重发或自行处理
                     return -1;
                 } else if (len == writed) {
-                    ByteBuf::recycleLen(buffer, firstOffset, len);
                     return writed;
                 } else {
-                    recycleWrited(buffer, firstOffset, writed, &firstOffset, &buffer);
+                    buf.clear(writed);
                     len -= writed;
                 }
             }
@@ -198,19 +180,6 @@ namespace sn {
         void close() override {
             if (!closed) {
                 closed = true;
-
-                while (!writingQue.empty()) {
-                    const auto &evt = writingQue.front();
-                    ByteBuf::recycleLen(evt.buffer, evt.bufferOffset, evt.dataLen);
-                    writingQue.pop_front();
-                }
-
-                while (!waitingWrite.empty()) {
-                    const auto &evt = waitingWrite.front();
-                    ByteBuf::recycleLen(evt.buffer, evt.bufferOffset, evt.dataLen);
-                    waitingWrite.pop_front();
-                }
-
                 uv_close((uv_handle_t *) &handle, ChannelHandler::onChannelClosed);
             }
 
@@ -292,123 +261,6 @@ namespace sn {
 
             return status;
         }
-    };
-
-    template<class Handler>
-    class TcpChannel : public WritableChannel<uv_tcp_t> {
-    private:
-        EndPoint raddr;
-
-        static void timeoutReconnect(uv_timer_t *handle) {
-
-            TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(handle->data);
-            free(handle);
-            try {
-                ch->connectTo(ch->raddr);
-            } catch (const IoError &e) {
-                LOG(ERROR) << "timeoutReconnect " << e;
-                delete ch;
-            }
-
-        }
-
-        static void onConnected(uv_connect_t *req, int status) {
-            TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(req->data);
-            if (!status) {
-                auto pHandler = new Handler(shared_ptr<TcpChannel<Handler>>(ch));
-                uv_stream_t *stream = req->handle;
-                stream->data = pHandler;
-                uv_read_start(stream, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
-            } else {
-                LOG(ERROR) << "Connect error retry" << uv_strerror(status);
-                uv_timer_t *timer = static_cast<uv_timer_t *>(malloc(sizeof(uv_timer_t)));
-                timer->data = ch;
-                uv_timer_init(req->handle->loop, timer);
-                uv_timer_start(timer, timeoutReconnect, 3000, 0);
-            }
-            free(req);
-        }
-
-    public:
-
-        ~TcpChannel() override {
-            LOG(INFO) << "~TcpChannel() " << raddr;
-        }
-
-        TcpChannel() {
-            LOG(INFO) << "TcpChannel()" << raddr;
-        }
-
-        EndPoint remoteAddr() {
-            return raddr;
-        }
-
-        void addToLoop(uv_loop_t *loop) override {
-            uv_tcp_init(loop, (uv_tcp_t *) &handle);
-        }
-
-        /**
-         * 如果这里抛出异常，回调函数一定不会执行。
-         * 如果没有抛出异常。则会无限次重连
-         * @param endPoint 远程
-         */
-        void connectTo(EndPoint endPoint) {
-            raddr = endPoint;
-
-            if (!handle.loop) {
-                // lib_uv 每一个结构必须有一个loop
-                addToLoop(uv_default_loop());
-            }
-
-            struct sockaddr_in serv_addr;
-            bzero((char *) &serv_addr, sizeof(serv_addr));
-            serv_addr.sin_family = AF_INET;
-            serv_addr.sin_addr = endPoint.ip;
-            serv_addr.sin_port = htons(static_cast<uint16_t>(endPoint.port));
-            int r;
-
-            struct sockaddr_in client_addr;
-            if ((r = uv_ip4_addr("0.0.0.0", 0, &client_addr))) {
-                throw IoError(r, "Init local addr");
-            }
-            if ((r = uv_tcp_bind(&handle, (sockaddr *) &client_addr, 0))) {
-                throw IoError(r, "Bind");
-            }
-
-            uv_connect_t *conType = static_cast<uv_connect_t *>(malloc(sizeof(uv_connect_t)));
-            conType->data = this;
-            if ((r = uv_tcp_connect(conType, &handle, (sockaddr *) &serv_addr, onConnected))) {
-                throw IoError(r, "Connection");
-            }
-            uv_tcp_keepalive(&handle, 1, 3600);
-            uv_tcp_nodelay(&handle, 1);
-        }
-
-        void acceptFrom(uv_stream_t *server) {
-            addToLoop(server->loop);
-            int r;
-            uv_stream_t *client = (uv_stream_t *) &handle;
-            if ((r = uv_accept(server, client))) {
-                throw IoError(r, "acceptFrom");
-            }
-
-            sockaddr_storage storage = {0};
-            int len = sizeof(storage);
-
-            if ((r = uv_tcp_getpeername(&handle, (sockaddr *) &storage, &len))) {
-                throw IoError(r, "acceptFrom");
-            }
-
-            assert(storage.ss_family == AF_INET);
-            sockaddr_in *in = reinterpret_cast<sockaddr_in *>(&storage);
-            raddr = EndPoint(*in);
-            LOG(INFO) << "Accept connection from " << raddr;
-            handle.data = new Handler(shared_ptr<TcpChannel<Handler>>(this));
-            uv_tcp_keepalive(&handle, 1, 3600);
-            uv_tcp_nodelay(&handle, 0);
-            uv_read_start(client, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
-        };
-
     };
 
 }
