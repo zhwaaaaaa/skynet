@@ -8,9 +8,9 @@
 #include "reactor.h"
 #include "service_keeper.h"
 #include "channel_keeper.h"
-#include <util/buffer.h>
 #include <util/HASH_MAP_HPP.h>
 #include <registry/naming_server.h>
+#include <util/Convert.h>
 
 namespace sn {
     using ServiceNamePtr = Segment<uint8_t> *;

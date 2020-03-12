@@ -7,6 +7,7 @@
 
 #include "reactor.h"
 #include "service_keeper.h"
+#include <util/Convert.h>
 
 namespace sn {
     using ServiceNamePtr = Segment <uint8_t> *;

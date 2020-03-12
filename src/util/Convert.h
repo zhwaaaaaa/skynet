@@ -1,14 +1,9 @@
 //
-// Created by dear on 20-1-26.
+// Created by dear on 3/12/20.
 //
 
-#ifndef SKYNET_BUFFER_H
-#define SKYNET_BUFFER_H
-
-
-#include <glob.h>
-#include <cstdlib>
-#include <iostream>
+#ifndef SKYNET_CONVERT_H
+#define SKYNET_CONVERT_H
 
 #if defined(__GNUC__)
 #define PACK_STRUCT_START struct __attribute__((__packed__))
@@ -18,39 +13,6 @@
 #define PACK_STRUCT_END ; #pragma pack(pop, _packed)
 #endif
 
-namespace sn {
-
-    template<typename LEN>
-    PACK_STRUCT_START Segment {
-        const LEN len;
-        char buf[];
-
-        template<typename NEW_LEN = LEN>
-        Segment<NEW_LEN> *sub(LEN offset = 0) {
-            return reinterpret_cast<Segment<NEW_LEN> *>(buf + offset);
-        }
-
-        template<typename T = Segment<LEN>>
-        T *last() {
-            return reinterpret_cast<T *>(buf + len);
-        }
-    }PACK_STRUCT_END
-
-    struct BufStr {
-        uint len;
-        const char *buf;
-
-        template<typename LEN>
-        BufStr(const Segment<LEN> &s) noexcept {
-            len = s.len;
-            buf = s.buf;
-        }
-    };
-
-    inline std::ostream &operator<<(std::ostream &os, const sn::BufStr &s) {
-        return os << "[" << s.len << "]" << (s.buf, s.len);
-    }
-}
 
 #if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 //当系统为大端时，把face_code结构体中的以小端模式存储的数据转换为大端
@@ -90,31 +52,25 @@ namespace sn {
 #define CONVERT_VAL_8(val)  (val)
 #endif
 
-
 namespace sn {
 
-    struct SegmentRef {
-        uint offset;
-        uint len;
-        char *buf;
-        SegmentRef *prev;
-        SegmentRef *next;
-    };
-    static thread_local SegmentRef *cache;// thread local
 
-    struct Buffer {
-        int refCount;
-        Buffer *next;
+    template<typename LEN>
+    PACK_STRUCT_START Segment {
+        const LEN len;
         char buf[];
-    };
 
-    constexpr unsigned int BUFFER_PAD = offsetof(Buffer, buf);
-    constexpr unsigned int BUFFER_SIZE = 65536;
-    constexpr unsigned int BUFFER_BUF_LEN(BUFFER_SIZE - BUFFER_PAD);
+        template<typename NEW_LEN = LEN>
+        Segment<NEW_LEN> *sub(LEN offset = 0) {
+            return reinterpret_cast<Segment<NEW_LEN> *>(buf + offset);
+        }
+
+        template<typename T = Segment<LEN>>
+        T *last() {
+            return reinterpret_cast<T *>(buf + len);
+        }
+    }PACK_STRUCT_END
 
 }
 
-#define BUF_TO_BUFFER(ch) reinterpret_cast<Buffer *>(ch - BUFFER_PAD)
-
-
-#endif //MESHER_BUFFER_H
+#endif //SKYNET_CONVERT_H

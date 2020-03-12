@@ -19,7 +19,7 @@ namespace sn {
     struct WriteEvent {
         uint32_t dataLen;
         uint32_t bufferOffset;
-        Buffer *buffer;
+        IoBuf *buffer;
     };
 
 
@@ -117,7 +117,7 @@ namespace sn {
          * @param len 数据长度
          * @return >= 0 写成功、 -1 出错但是buffer还没被污染可自行处理， <-1 buffer已经被回收掉了
          */
-        int writeMsg(Buffer *buffer, uint32_t firstOffset, uint32_t len) override {
+        int writeMsg(IoBuf &buf) override {
             if (closed) {
                 // recycleWrited(buffer, firstOffset, len);
                 return -1;
@@ -126,7 +126,7 @@ namespace sn {
             int writed = 0;
 
             // tryWrite 不能写过多数据。因为缓冲区写满了就无法再写了.208K
-            if (writingQue.empty() && len < 212992) {
+            if (writingQue.empty() && buf.getSize() < 212992) {
 
                 if (len <= BUFFER_BUF_LEN - firstOffset) {
                     uv_buf_t buf;

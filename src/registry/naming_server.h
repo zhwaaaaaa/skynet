@@ -7,7 +7,6 @@
 
 #include <util/endpoint.h>
 #include <vector>
-#include <util/buffer.h>
 #include <util/HASH_MAP_HPP.h>
 #include <util/func_time.h>
 

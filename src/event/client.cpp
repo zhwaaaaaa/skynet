@@ -5,7 +5,7 @@
 #include "client.h"
 #include <memory>
 #include <registry/naming_server.h>
-#include <nevent/transfer_handler.h>
+#include <nevent/ResponseHandler.h>
 #include <nevent/io_error.h>
 #include <nevent/stream_channel.h>
 

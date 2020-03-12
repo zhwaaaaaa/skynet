@@ -56,7 +56,7 @@ namespace sn {
          * @param buf
          * @param len
          */
-        void writePtr(char **buf, uint32_t *len) {
+        void writePtr(char **buf, size_t *len) {
             if (!tail) {
                 head = tail = BlockPool::get();
                 *buf = tail->buf;
@@ -189,7 +189,7 @@ namespace sn {
         }
 
         /**
-         * 从开始截取一个IoBuf
+         * 从开始截取一个IoBuf.截取到的IoBuf不可再追加写数据
          * @param buf
          * @param len
          */
@@ -197,6 +197,31 @@ namespace sn {
             buf.clearAll();
             CHECK(len > 0 && len <= size);
             buf.head = head;
+            buf.size = buf.capacity = len;
+            buf.headOffset = headOffset;
+
+            uint32_t offset = len + headOffset;
+            Block *tmp = head;
+            Block *next = tmp->next;
+            while (offset > BLOCK_DATA_LEN) {
+                CHECK(next);
+                tmp = next;
+                next = tmp->next;
+                offset -= BLOCK_DATA_LEN;
+            }
+            buf.tailOffset = offset;
+            buf.tail = tmp;
+
+            if (offset == BLOCK_DATA_LEN) {
+                head = next;
+                headOffset = 0;
+            } else {
+                head = tmp;
+                headOffset = tailOffset;
+                ++tmp->ref;
+            }
+            size -= len;
+            capacity -= len;
         }
 
         /**
@@ -227,6 +252,85 @@ namespace sn {
             } else {
                 *t = reinterpret_cast<T *>(tmp->buf + offset);
             }
+        }
+
+        inline void *convertOrCopyLen(uint32_t len, void *ptr, uint32_t offset = 0) {
+            CHECK(size >= offset + len);
+            Block *tmp = head;
+            if (offset) {
+                offset += headOffset;
+                Block *next = tmp->next;
+                while (offset >= BLOCK_DATA_LEN) {
+                    CHECK(next);
+                    tmp = next;
+                    next = tmp->next;
+                    offset -= BLOCK_DATA_LEN;
+                }
+            } else {
+                offset = headOffset;
+            }
+
+            if (offset + len > BLOCK_DATA_LEN) {
+                char *dst = static_cast<char *>(ptr);
+                uint32_t n = BLOCK_DATA_LEN - offset;
+                memcpy(dst, tmp->buf + offset, n);
+
+                int t = n;
+                int left = (int) (len - n);
+                do {
+                    tmp = tmp->next;
+                    n = std::min(left, (int) BLOCK_DATA_LEN);
+                    memcpy(dst + t, tmp->buf, n);
+                    t += n;
+                    left -= n;
+                } while (left);
+                return ptr;
+            } else {
+                return tmp->buf + offset;
+            }
+        }
+
+        inline void copyIntoPtr(uint32_t len, void *ptr, uint32_t offset = 0) {
+            CHECK(size >= offset + len);
+            Block *tmp = head;
+            if (offset) {
+                offset += headOffset;
+                Block *next = tmp->next;
+                while (offset >= BLOCK_DATA_LEN) {
+                    CHECK(next);
+                    tmp = next;
+                    next = tmp->next;
+                    offset -= BLOCK_DATA_LEN;
+                }
+            } else {
+                offset = headOffset;
+            }
+
+            if (offset + len > BLOCK_DATA_LEN) {
+                char *dst = static_cast<char *>(ptr);
+                uint32_t n = BLOCK_DATA_LEN - offset;
+                memcpy(dst, tmp->buf + offset, n);
+
+                int t = n;
+                int left = (int) (len - n);
+                do {
+                    tmp = tmp->next;
+                    n = std::min(left, (int) BLOCK_DATA_LEN);
+                    memcpy(dst + t, tmp->buf, n);
+                    t += n;
+                    left -= n;
+                } while (left);
+            } else {
+                memcpy(ptr, tmp->buf + offset, len);
+            }
+        }
+
+        inline uint32_t getSize() {
+            return size;
+        }
+
+        inline uint32_t getCapacity() {
+            return capacity;
         }
 
         /**
@@ -283,8 +387,37 @@ namespace sn {
         template<typename T>
         inline T read(uint32_t offset = 0) {
             T t;
-            coyInfo(&t, offset);
+            copyInto<T>(&t, offset);
             return t;
+        }
+
+        /**
+         * 因为调用比较频繁，提供快捷方法。
+         * @return
+         */
+        inline uint8_t readUint8() {
+            return (uint8_t) head->buf[headOffset];
+        }
+
+        /**
+         * 因为调用比较频繁，提供快捷方法。不进行长度检查。由调用者执行判断
+         * @return
+         */
+        inline uint8_t readUint8(uint32_t offset) {
+            Block *tmp = head;
+            if (offset) {
+                offset += headOffset;
+                Block *next = tmp->next;
+                while (offset >= BLOCK_DATA_LEN) {
+                    CHECK(next);
+                    tmp = next;
+                    next = tmp->next;
+                    offset -= BLOCK_DATA_LEN;
+                }
+            } else {
+                offset = headOffset;
+            }
+            return (uint8_t) head->buf[offset];
         }
 
 

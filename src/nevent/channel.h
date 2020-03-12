@@ -6,9 +6,8 @@
 #define SKYNET_CHANNEL_H
 
 #include <uv.h>
-#include <util/buffer.h>
 #include <util/endpoint.h>
-#include <strings.h>
+#include "IoBuf.h"
 
 namespace sn {
     class Loopable {
@@ -35,7 +34,7 @@ namespace sn {
          * @param len 数据长度
          * @return >= 0 写成功、 -1 出错但是buffer还没被污染可自行处理， <-1 buffer已经被回收掉了
          */
-        virtual int writeMsg(Buffer *buffer, uint32_t firstOffset, uint32_t len) = 0;
+        virtual int writeMsg(IoBuf &buf) = 0;
 
         virtual void close() = 0;
 

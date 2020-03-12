@@ -22,19 +22,18 @@ set(SOURCE_FILES
         src/registry/server_publisher.cpp
         src/registry/server_publisher.h
         #util
-        src/util/buffer.h
         src/util/endpoint.cpp
         src/util/endpoint.h
         src/util/HASH_MAP_HPP.h
         src/util/func_time.h
         src/util/func_time.cpp
-        src/util/byte_buf.h
-        src/util/byte_buf.cpp
-        src/util/IoBuf.h
-        src/util/IoBuf.cpp
+        src/util/Convert.h
+
         #third_part
         src/util/third_part/superfasthash/superfasthash.c
         # new event
+        src/nevent/IoBuf.h
+        src/nevent/IoBuf.cpp
         src/nevent/channel.cpp
         src/nevent/channel.h
         src/nevent/channel_handler.cpp
@@ -44,10 +43,12 @@ set(SOURCE_FILES
         src/nevent/stream_channel.h
         src/nevent/tcp_listener.cpp
         src/nevent/tcp_listener.h
-        src/nevent/transfer_handler.cpp
-        src/nevent/transfer_handler.h
+        src/nevent/ResponseHandler.cpp
+        src/nevent/ResponseHandler.h
         src/nevent/shake_hands_handler.cpp
-        src/nevent/shake_hands_handler.h)
+        src/nevent/shake_hands_handler.h
+        src/nevent/RequestHandler.cpp
+        src/nevent/RequestHandler.h)
 
 set(THREAD_FILES
         #thread
