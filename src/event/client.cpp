@@ -7,7 +7,7 @@
 #include <registry/naming_server.h>
 #include <nevent/ResponseHandler.h>
 #include <nevent/io_error.h>
-#include <nevent/stream_channel.h>
+#include <nevent/TcpChannel.h>
 
 
 namespace sn {
@@ -27,7 +27,7 @@ namespace sn {
             auto iterator = client.serviceMap.find(serv);
             if (iterator != client.serviceMap.end()) {
                 // 取消订阅的时候回调函数是同步执行的。所以取消订阅的时候service一定没有人用了。
-                assert(!iterator->second->count());
+                CHECK(!iterator->second->count());
                 // 需要删除malloc的key
                 const char *keyVal = iterator->first.data();
                 client.serviceMap.erase(iterator);
@@ -103,7 +103,7 @@ namespace sn {
 
     shared_ptr<ChannelKeeper> Client::getServiceChannel(const EndPoint endPoint) {
         auto iterator = channelMap.find(endPoint);
-        assert(iterator != channelMap.end());
+        CHECK(iterator != channelMap.end());
         return iterator->second;
     }
 
@@ -148,7 +148,7 @@ namespace sn {
 
     void Client::removeResponseChannel(uint32_t channelId) {
         auto iterator = responseChs.find(channelId);
-        assert(iterator != responseChs.end());
+        CHECK(iterator != responseChs.end());
         responseChs.erase(iterator);
     }
 

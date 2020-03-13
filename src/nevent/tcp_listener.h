@@ -9,6 +9,7 @@
 #include "channel.h"
 #include "io_error.h"
 #include "stream_channel.h"
+#include "TcpChannel.h"
 
 namespace sn {
 

@@ -48,10 +48,17 @@ namespace sn {
         uint32_t size;
         uint32_t capacity;
     public:
-        IoBuf &operator=(IoBuf &) = delete;
+//        IoBuf &operator=(IoBuf &) = delete;
 
     public:
         IoBuf() : head(nullptr), tail(nullptr), headOffset(0), tailOffset(0), size(0), capacity(0) {
+        }
+
+        IoBuf(IoBuf &&buf) : head(buf.head), tail(buf.tail),
+                                      headOffset(buf.headOffset), tailOffset(buf.tailOffset),
+                                      size(buf.size), capacity(buf.capacity) {
+            buf.head = buf.tail = nullptr;
+            buf.headOffset = buf.tailOffset = buf.size = buf.capacity = 0;
         }
 
         /**
@@ -173,7 +180,7 @@ namespace sn {
                 offset = headOffset;
             }
 
-            char *src = &v;
+            const char *src = reinterpret_cast<const char *>(&v);
             if (sizeof(T) + offset <= BLOCK_DATA_LEN) {
                 memcpy(tmp->buf + offset, src, sizeof(T));
                 return;
@@ -362,7 +369,7 @@ namespace sn {
                 offset = headOffset;
             }
 
-            char *dst = &v;
+            char *dst = reinterpret_cast<char *>(&v);
             if (sizeof(T) + offset <= BLOCK_DATA_LEN) {
                 memcpy(dst, tmp->buf + offset, sizeof(T));
                 return;
@@ -425,13 +432,13 @@ namespace sn {
             return (uint8_t) head->buf[offset];
         }
 
-        uint32_t dataBlockSize() {
+        uint32_t dataBlockSize() const {
             uint32_t sizeAndHead = headOffset + size;
             auto i = sizeAndHead / BLOCK_DATA_LEN;
             return tailOffset ? i + 1 : i;
         }
 
-        void dataPtr(uv_buf_t *uvBuf, size_t len) {
+        void dataPtr(uv_buf_t *uvBuf, size_t len) const {
             CHECK(len > 1);
             uvBuf->base = head->buf + headOffset;
             uvBuf->len = BLOCK_DATA_LEN - headOffset;
@@ -449,7 +456,7 @@ namespace sn {
             uvBuf[lastIndex].len = tailOffset;
         }
 
-        void firstDataPtr(uv_buf_t &uvBuf) {
+        void firstDataPtr(uv_buf_t &uvBuf) const {
             uvBuf.base = head->buf + headOffset;
             uvBuf.len = BLOCK_DATA_LEN - headOffset;
         }

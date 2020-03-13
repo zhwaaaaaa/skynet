@@ -14,14 +14,8 @@
 
 namespace sn {
 
-    struct WriteEvent {
-        uint32_t dataLen;
-        uint32_t bufferOffset;
-        IoBuf *buffer;
-    };
 
-
-    using WriteEventQueue = std::deque<WriteEvent>;
+    using WriteEventQueue = std::deque<IoBuf>;
 
     uint32_t generateChannelId();
 
@@ -38,12 +32,9 @@ namespace sn {
         static void onWritingCompleted(uv_write_t *req, int status) {
             WritableChannel<Type> *thisWriteCh = static_cast< WritableChannel<Type> *>(req->data);
             auto &writingQue = thisWriteCh->writingQue;
+            CHECK(!writingQue.empty()) << "writing size 0?";
             // 不管对错，先把正在写的回收掉
-            while (!writingQue.empty()) {
-                const auto &evt = writingQue.front();
-                ByteBuf::recycleLen(evt.buffer, evt.bufferOffset, evt.dataLen);
-                writingQue.pop_front();
-            }
+            writingQue.clear();
             if (status) {
                 thisWriteCh->close();
             } else {
@@ -70,44 +61,6 @@ namespace sn {
             return old;
         }
 
-        static void recycleWrited(Buffer *buffer, uint32_t firstOffset, uint32_t writed,
-                                  uint32_t *unwritedOffset, Buffer **unwritedBuffer) {
-            int rLen = BUFFER_BUF_LEN - firstOffset;
-            Buffer *tmp = buffer;
-            Buffer *next = tmp->next;
-            while (writed > rLen) {
-                assert(next);
-                if (--tmp->refCount) {
-                    ByteBuf::recycleSingle(tmp);
-                }
-                tmp = next;
-                rLen += BUFFER_BUF_LEN;
-                next = tmp->next;
-            }
-
-            // 两个相等还有最后一个没回收
-            if (writed == rLen) {
-                if (unwritedOffset) {
-                    *unwritedOffset = 0;
-                }
-                if (unwritedBuffer) {
-                    *unwritedBuffer = next;
-                }
-                if (--tmp->refCount) {
-                    ByteBuf::recycleSingle(tmp);
-                }
-            } else {
-                // 如果发现最后一个没有写完，是不会回收最后一个的
-                if (unwritedOffset) {
-                    *unwritedOffset = BUFFER_BUF_LEN - (rLen - writed);
-                }
-                if (unwritedBuffer) {
-                    *unwritedBuffer = tmp;
-                }
-            }
-
-        }
-
         /**
          * 返回
          * @param buffer 数据buffer链表头
@@ -121,6 +74,7 @@ namespace sn {
                 return -1;
             }
             int len = buf.getSize();
+            CHECK(len > 0) << "no data write?";
 
             int writed = 0;
 
@@ -135,6 +89,7 @@ namespace sn {
                     writed = uv_try_write((uv_stream_t *) &handle, &uvBuf, 1);
                 } else {
                     uv_buf_t uvBuf[blockSize];
+                    buf.dataPtr(uvBuf, blockSize);
                     writed = uv_try_write((uv_stream_t *) &handle, uvBuf, blockSize);
                 }
 
@@ -156,17 +111,16 @@ namespace sn {
 
             if (len) {
                 if (!writingQue.empty()) {
-                    waitingWrite.push_back({len, firstOffset, buffer});
+                    waitingWrite.emplace_back(std::move(buf));
                     return writed;
                 }
 
-                int status = writeAsync(buffer, firstOffset, len);
+                int status = writeAsync(buf);
                 if (status) {
                     if (!writed) {
                         // 如果之前没有写入操作,返回一个错误，这个buffer还可以重新找一个管道写出去。
                         return -1;
                     } else {
-                        ByteBuf::recycleLen(buffer, firstOffset, len);
                         close();
                         return -2;
                     }
@@ -182,7 +136,6 @@ namespace sn {
                 closed = true;
                 uv_close((uv_handle_t *) &handle, ChannelHandler::onChannelClosed);
             }
-
         }
 
     private:
@@ -195,68 +148,47 @@ namespace sn {
             std::vector<uv_buf_t> wes;
             wes.reserve(size);
 
-            for (const WriteEvent &evt: waitingWrite) {
-                if (evt.dataLen <= BUFFER_BUF_LEN - evt.bufferOffset) {
-                    wes.push_back({evt.buffer->buf + evt.bufferOffset, evt.dataLen});
+            for (const IoBuf &evt: waitingWrite) {
+                uint32_t blockSize = evt.dataBlockSize();
+                if (blockSize == 1) {
+                    uv_buf_t uvBuf;
+                    evt.firstDataPtr(uvBuf);
+                    wes.push_back(uvBuf);
                 } else {
-                    auto exceptFirst = evt.dataLen - (BUFFER_BUF_LEN - evt.bufferOffset);
-                    auto tailLen = exceptFirst % BUFFER_BUF_LEN;
-                    uint32_t bufSize = exceptFirst / BUFFER_BUF_LEN + (tailLen == 0 ? 1 : 2);
-
-                    Buffer *tmp = evt.buffer;
-                    wes.push_back({tmp->buf + evt.bufferOffset, BUFFER_BUF_LEN - evt.bufferOffset});
-
-                    for (int i = 1; i < bufSize - 1; ++i) {
-                        tmp = tmp->next;
-                        wes.push_back({evt.buffer->buf, BUFFER_BUF_LEN});
+                    uv_buf_t uvBuf[blockSize];
+                    evt.dataPtr(uvBuf, blockSize);
+                    for (int i = 0; i < blockSize; ++i) {
+                        wes.push_back(uvBuf[i]);
                     }
-
-                    tmp = tmp->next;
-                    wes.push_back({tmp->buf, tailLen});
                 }
             }
 
             int status;
             if (!(status = uv_write(&wrHandle, (uv_stream_t *) &handle, wes.data(), wes.size(), onWritingCompleted))) {
-                while (!waitingWrite.empty()) {
-                    writingQue.push_back(waitingWrite.front());
-                    waitingWrite.pop_front();
-                }
+                writingQue = std::move(waitingWrite);
             } else {
                 LOG(ERROR) << "Error Write:" << uv_err_name(status);
                 close();
             }
         }
 
-        int writeAsync(Buffer *buffer, uint32_t firstOffset, uint32_t len) {
+        int writeAsync(IoBuf &buf) {
 
+            uint32_t blockSize = buf.dataBlockSize();
+            CHECK(blockSize > 0);
             int status;
-            if (len <= BUFFER_BUF_LEN - firstOffset) {
-                uv_buf_t buf = {buffer->buf + firstOffset, len};
-                status = uv_write(&wrHandle, (uv_stream_t *) &handle, &buf, 1, onWritingCompleted);
+            if (blockSize == 1) {
+                uv_buf_t uvBuf;
+                buf.firstDataPtr(uvBuf);
+                status = uv_write(&wrHandle, (uv_stream_t *) &handle, &uvBuf, 1, onWritingCompleted);
             } else {
-                auto exceptFirst = len - (BUFFER_BUF_LEN - firstOffset);
-                auto tailLen = exceptFirst % BUFFER_BUF_LEN;
-                uint32_t bufSize = exceptFirst / BUFFER_BUF_LEN + (tailLen == 0 ? 1 : 2);
-
-                uv_buf_t buf[bufSize];
-
-                Buffer *tmp = buffer;
-                buf[0] = {tmp->buf + firstOffset, BUFFER_BUF_LEN - firstOffset};
-
-                for (int i = 1; i < bufSize - 1; ++i) {
-                    tmp = tmp->next;
-                    buf[i].len = BUFFER_BUF_LEN;
-                    buf[i].base = buffer->buf;
-                }
-
-                tmp = tmp->next;
-                buf[bufSize - 1] = {tmp->buf, tailLen};
-                status = uv_write(&wrHandle, (uv_stream_t *) &handle, buf, bufSize, onWritingCompleted);
+                uv_buf_t uvBuf[blockSize];
+                buf.dataPtr(uvBuf, blockSize);
+                status = uv_write(&wrHandle, (uv_stream_t *) &handle, uvBuf, blockSize, onWritingCompleted);
             }
 
-            if (!status) {
-                writingQue.push_back({len, firstOffset, buffer});
+            if (!status) { // status 为0 代表写成功
+                writingQue.push_back(std::move(buf));
             }
 
             return status;

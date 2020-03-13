@@ -2,6 +2,7 @@
 #include <nevent/ResponseHandler.h>
 #include <nevent/shake_hands_handler.h>
 #include <event/server.h>
+#include <nevent/RequestHandler.h>
 
 using namespace sn;
 

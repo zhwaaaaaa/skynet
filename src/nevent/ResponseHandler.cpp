@@ -8,6 +8,7 @@
 #include <event/client.h>
 #include <event/server.h>
 #include "stream_channel.h"
+#include "TcpChannel.h"
 
 namespace sn {
 
