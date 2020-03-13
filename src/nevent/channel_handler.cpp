@@ -12,6 +12,7 @@ namespace sn {
     void ChannelHandler::onChannelClosed(uv_handle_t *handle) {
         ChannelHandler *handler = static_cast<ChannelHandler *>(handle->data);
         delete handler;
+        BlockPool::report();
     }
 
     void ChannelHandler::onMemoryAlloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
@@ -54,7 +55,6 @@ namespace sn {
     }
 
     int ChannelHandler::onRead(ssize_t nread) {
-        ioBuf.addSize(nread);
         int size = (int) ioBuf.getSize();
         while (size >= 5) {
             uint32_t len = CONVERT_VAL_32(ioBuf.read<uint32_t>(1)) + 5;

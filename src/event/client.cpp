@@ -11,29 +11,31 @@
 
 
 namespace sn {
-    void Client::onNamingServerNotify(const string_view &serv, const vector<EndPoint> &eps,
-                                      bool hashNext, void *param) {
+    void Client::onNamingServerNotify(const string_view &serv, const vector<string> &epstr, void *param) {
 
         auto &client = Thread::local<Client>();
 
-        for (const EndPoint ep:eps) {
+        vector<EndPoint> eps;
+        eps.reserve(epstr.size());
+        for (const string &str:epstr) {
+            EndPoint ep;
+            str2endpoint(str.c_str(),&ep);
             client.addServiceChannel(ep);
+            eps.push_back(ep);
         }
 
+
         auto *serviceKeeper = static_cast<ServiceKeeper *>(param);
-        if (hashNext) {
-            serviceKeeper->servChanged(eps);
-        } else {
-            auto iterator = client.serviceMap.find(serv);
-            if (iterator != client.serviceMap.end()) {
-                // 取消订阅的时候回调函数是同步执行的。所以取消订阅的时候service一定没有人用了。
-                CHECK(!iterator->second->count());
-                // 需要删除malloc的key
-                const char *keyVal = iterator->first.data();
-                client.serviceMap.erase(iterator);
-                free((void *) keyVal);
-            }
-        }
+        serviceKeeper->servChanged(eps);
+       /* auto iterator = client.serviceMap.find(serv);
+        if (iterator != client.serviceMap.end()) {
+            // 取消订阅的时候回调函数是同步执行的。所以取消订阅的时候service一定没有人用了。
+            CHECK(!iterator->second->count());
+            // 需要删除malloc的key
+            const char *keyVal = iterator->first.data();
+            client.serviceMap.erase(iterator);
+            free((void *) keyVal);
+        }*/
     }
 
     ServiceKeeper *Client::getByService(const ServiceNamePtr serv) {

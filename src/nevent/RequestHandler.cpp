@@ -37,7 +37,6 @@ namespace sn {
         }
         if (status < 0) {
             IoBuf r;
-            r.extendBlock();
             size_t maxLen;
             char *c;
             r.writePtr(&c, &maxLen);

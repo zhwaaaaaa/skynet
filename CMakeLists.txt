@@ -21,6 +21,8 @@ set(SOURCE_FILES
         src/registry/naming_server.cpp
         src/registry/server_publisher.cpp
         src/registry/server_publisher.h
+        src/registry/ZkNamingServer.cpp
+        src/registry/ZkNamingServer.h
         #util
         src/util/endpoint.cpp
         src/util/endpoint.h

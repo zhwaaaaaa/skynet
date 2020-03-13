@@ -12,7 +12,7 @@ namespace sn {
 
     int ShakeHandsHandler::onMessage(IoBuf &buf) {
         vector<string> servs;
-        uint32_t size = buf.getSize() - 5;
+        uint32_t size = buf.getSize();
         serviceSize = CONVERT_VAL_16(buf.read<uint16_t>(5));
         uint32_t offset = 7;
         for (int i = 0; i < serviceSize; ++i) {
@@ -23,7 +23,7 @@ namespace sn {
                 LOG(WARNING) << "decode shake hands decode size " << (offset + len) << " greater than size " << size;
                 return -1;
             }
-            s.resize(len + 1);
+            s.resize(len);
             buf.copyIntoPtr(len, s.data(), offset + 1);
             offset += len + 1;
             servs.push_back(std::move(s));
@@ -40,6 +40,7 @@ namespace sn {
     }
 
     int ClientShakeHandsHandler::doShakeHands(vector<string> &services) {
+        LOG(INFO) << services[0];
         return 0;
     }
 
@@ -48,7 +49,7 @@ namespace sn {
     }
 
     int ServerShakeHandsHandler::doShakeHands(vector<string> &services) {
-
+        LOG(INFO) << services[0];
         return 0;
     }
 }

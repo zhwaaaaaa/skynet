@@ -6,21 +6,21 @@
 
 namespace sn {
 
-    void DemoNamingServer::subscribe(const string_view &serviceName, SubscribeFunc func, void *param) {
 
+    unique_ptr<vector<string>>
+    DemoNamingServer::subscribe(const string_view &serviceName, SubscribeFunc func, void *param) {
         subscribeMap.insert(make_pair(serviceName, FuncWithParam({func, param})));
-        EndPoint ep;
-        str2endpoint("127.0.0.1:9999", &ep);
-        func(serviceName, {ep}, true, param);
+        func(serviceName, {"127.0.0.1:9999"}, param);
     }
 
     void DemoNamingServer::unsubscribe(const string_view &serviceName) {
         auto iterator = subscribeMap.find(serviceName);
         if (iterator != subscribeMap.end()) {
-            const auto &fwp = iterator->second;
-            EndPoint ep;
-            str2endpoint("127.0.0.1:9999", &ep);
-            fwp.func(serviceName, {ep}, false, fwp.param);
+            subscribeMap.erase(iterator);
         }
+    }
+
+    unique_ptr<vector<string>> DemoNamingServer::lookup(const string_view &service) {
+        return unique_ptr<vector<string>>();
     }
 }

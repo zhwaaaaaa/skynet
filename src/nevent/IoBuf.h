@@ -27,6 +27,8 @@ namespace sn {
     private:
         int maxSize;
         int current;
+        int totalMalloc;
+        int currentMalloc;
         Block *head;
     public:
         explicit BlockPool(int maxSize = 256) noexcept;
@@ -37,6 +39,8 @@ namespace sn {
         static Block *get();
 
         static void recycle(Block *b);
+
+        static void report();
     };
 
 
@@ -55,8 +59,8 @@ namespace sn {
         }
 
         IoBuf(IoBuf &&buf) : head(buf.head), tail(buf.tail),
-                                      headOffset(buf.headOffset), tailOffset(buf.tailOffset),
-                                      size(buf.size), capacity(buf.capacity) {
+                             headOffset(buf.headOffset), tailOffset(buf.tailOffset),
+                             size(buf.size), capacity(buf.capacity) {
             buf.head = buf.tail = nullptr;
             buf.headOffset = buf.tailOffset = buf.size = buf.capacity = 0;
         }
@@ -68,14 +72,19 @@ namespace sn {
          * @param len
          */
         void writePtr(char **buf, size_t *len) {
-            if (!tail) {
-                head = tail = BlockPool::get();
-                *buf = tail->buf;
+            uint32_t canWrite = capacity - size;
+            if (!head) {
+                extendBlock();
+                *buf = head->buf;
+                *len = BLOCK_DATA_LEN;
+            } else if (canWrite < 1024 && !size) {
+                clearAll();
+                extendBlock();
+                *buf = head->buf;
                 *len = BLOCK_DATA_LEN;
             } else {
-                uint32_t left = BLOCK_DATA_LEN - tailOffset;
                 *buf = tail->buf + tailOffset;
-                *len = left;
+                *len = canWrite;
             }
         }
 
@@ -88,14 +97,26 @@ namespace sn {
          * 清掉所有的Block。变成一个空结构
          */
         inline void clearAll() {
-            CHECK(capacity == size);
-            clear(size);
+            if (!head) {
+                return;
+            }
+            int c = (int) (capacity + headOffset);
+            Block *tmp = head;
+            do {
+                CHECK(tmp);
+                Block *next = tmp->next;
+                if (!--tmp->ref) {
+                    BlockPool::recycle(tmp);
+                }
+                c -= BLOCK_DATA_LEN;
+                tmp = next;
+            } while (c > 0);
             head = tail = nullptr;
-            CHECK(!tailOffset && !headOffset);
+            headOffset = tailOffset = 0;
         }
 
         inline void clear(uint32_t clrSize) {
-            CHECK(clrSize <= size);
+            CHECK(clrSize > 0 && clrSize <= size);
             // 有数据的情况下 tailOffset
             if (head) {
                 u_int32_t rLen = BLOCK_DATA_LEN - headOffset;
@@ -103,7 +124,7 @@ namespace sn {
                 Block *next = tmp->next;
                 while (clrSize > rLen) {
                     CHECK(next);
-                    if (--tmp->ref) {
+                    if (!--tmp->ref) {
                         BlockPool::recycle(tmp);
                     }
                     tmp = next;
@@ -115,7 +136,7 @@ namespace sn {
                 if (clrSize == rLen) {
                     headOffset = 0;
                     head = next;
-                    if (--tmp->ref) {
+                    if (!--tmp->ref) {
                         BlockPool::recycle(tmp);
                     }
                 } else {
@@ -125,6 +146,11 @@ namespace sn {
                 }
                 size -= clrSize;
                 capacity -= clrSize;
+                if (!capacity) {
+                    CHECK(!head && !headOffset);
+                    tail = nullptr;
+                    tailOffset = 0;
+                }
             } else {
                 CHECK(!tailOffset && !headOffset);
             }
@@ -136,10 +162,6 @@ namespace sn {
             size += writed;
             tailOffset += writed;
             CHECK(tailOffset <= BLOCK_DATA_LEN);
-            if (BLOCK_DATA_LEN == tailOffset) {
-                tail = tail->next = BlockPool::get();
-                tailOffset = 0;
-            }
         }
 
         inline void extendBlock(uint32_t extSize = 1) {
@@ -229,7 +251,7 @@ namespace sn {
                 headOffset = 0;
             } else {
                 head = tmp;
-                headOffset = tailOffset;
+                headOffset = buf.tailOffset;
                 ++tmp->ref;
             }
             size -= len;
@@ -369,7 +391,7 @@ namespace sn {
                 offset = headOffset;
             }
 
-            char *dst = reinterpret_cast<char *>(&v);
+            char *dst = reinterpret_cast<char *>(v);
             if (sizeof(T) + offset <= BLOCK_DATA_LEN) {
                 memcpy(dst, tmp->buf + offset, sizeof(T));
                 return;

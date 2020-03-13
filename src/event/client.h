@@ -17,7 +17,7 @@ namespace sn {
 
     class Client : public Reactor {
     private:
-        static void onNamingServerNotify(const string_view &, const vector<EndPoint> &, bool hashNext, void *param);
+        static void onNamingServerNotify(const string_view &serv, const vector<string> &eps, void *param);
 
     private:
         hash_map<string_view, shared_ptr<ServiceKeeper>> serviceMap;
