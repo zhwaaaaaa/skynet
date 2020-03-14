@@ -12,23 +12,18 @@ namespace sn {
     void ZkNamingServer::watcherZookeeper(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx) {
     }
 
-    struct WatchContext {
-        SubscribeFunc func;
-        void *param;
-        string path;
-        ZkNamingServer *server;
-        string service;
-        vector<string> val;
-
-        WatchContext(SubscribeFunc func, void *param, string &path, ZkNamingServer *server, const string_view &service)
-                : func(func), param(param), path(path), server(server), service(service) {}
-    };
 
     void ZkNamingServer::watcherService(zhandle_t *zh, int type, int state, const char *path, void *watcherCtx) {
-        WatchContext *ctx = static_cast<WatchContext *>(watcherCtx);
+        ZkNamingServer *server = static_cast<ZkNamingServer *>(watcherCtx);
+        lock_guard guard(server->subscribeLock);
+        auto iterator = server->subscribeMap.find(string(path));
+        if (iterator == server->subscribeMap.end()) {
+            return;
+        }
+        shared_ptr<WatchContext> ctx = iterator->second;
         String_vector val{};
         int r;
-        if ((r = zoo_wget_children(zh, ctx->path.c_str(), watcherService, ctx, &val)) == ZOK) {
+        if ((r = zoo_wget_children(zh, ctx->path.c_str(), watcherService, watcherCtx, &val)) == ZOK) {
             ctx->val.clear();
             for (int i = 0; i < val.count; ++i) {
                 ctx->val.emplace_back(val.data[i]);
@@ -54,18 +49,36 @@ namespace sn {
         if (!handle) {
             CHECK(handle) << "zookeeper连接失败:" << config.ipHosts;
         }
+        int r;
+        Stat stat;
+        if ((r = zoo_exists(handle, config.zkNamespace.c_str(), 0, &stat)) == ZNONODE) {
+            r = zoo_create(handle, config.zkNamespace.c_str(), nullptr, -1, &ZOO_OPEN_ACL_UNSAFE, 0,
+                           nullptr, 0);
+        }
+        CHECK(r == ZOK) << "ZkNamingServer 启动失败:" << zerror(r);
     }
 
     unique_ptr<vector<string>>
     ZkNamingServer::subscribe(const std::string_view &serviceName, SubscribeFunc func, void *param) {
         string path = config.zkNamespace;
         path.append("/");
-        String_vector val;
+        String_vector val{};
         path.append(serviceName);
-        WatchContext *ctx = new WatchContext(func, param, path, this, serviceName);
-        int r;
+        lock_guard guard(subscribeLock);
+        subscribeMap.insert_or_assign(path, make_shared<WatchContext>(func, param, path, serviceName));
+        Stat stat{};
+        int r = zoo_exists(handle, path.c_str(), 0, &stat);
+        if (r == ZNONODE) {
+            r = zoo_create(handle, path.c_str(), nullptr, -1, &ZOO_OPEN_ACL_UNSAFE, 0,
+                           nullptr, 0);
+        }
         unique_ptr<vector<string>> ret;
-        if ((r = zoo_wget_children(handle, path.c_str(), watcherService, ctx, &val)) == ZOK) {
+
+        if (r != ZOK) {
+            return ret;
+        }
+
+        if ((r = zoo_wget_children(handle, path.c_str(), watcherService, this, &val)) == ZOK) {
             for (int i = 0; i < val.count; ++i) {
                 ret->emplace_back(val.data[i]);
             }
@@ -77,7 +90,15 @@ namespace sn {
 
 
     void ZkNamingServer::unsubscribe(const string_view &serviceName) {
-
+        string path = config.zkNamespace;
+        path.append("/");
+        path.append(serviceName);
+        lock_guard guard(subscribeLock);
+        auto i = subscribeMap.find(path);
+        if (i != subscribeMap.end()) {
+            LOG(INFO) << "unsubscribe service " << serviceName;
+            subscribeMap.erase(i);
+        }
     }
 
     void ZkNamingServer::registerService(const string_view &serviceName) {
@@ -86,7 +107,6 @@ namespace sn {
         } catch (IoError &err) {
             LOG(WARNING) << "register " << serviceName << " failed " << err.what();
         }
-
     }
 
 
@@ -97,7 +117,7 @@ namespace sn {
         Stat stat{};
         int i = zoo_exists(handle, path.c_str(), 0, &stat);
         if (i == ZNONODE) {
-            i = zoo_create(handle, path.c_str(), nullptr, -1, &ZOO_OPEN_ACL_UNSAFE, ZOO_EPHEMERAL,
+            i = zoo_create(handle, path.c_str(), nullptr, -1, &ZOO_OPEN_ACL_UNSAFE, 0,
                            nullptr, 0);
         }
 

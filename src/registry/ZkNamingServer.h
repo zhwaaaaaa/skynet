@@ -7,6 +7,8 @@
 
 #include "naming_server.h"
 #include <zookeeper/zookeeper.h>
+#include <boost/unordered_map.hpp>
+#include <mutex>
 
 namespace sn {
     struct ZkConfig {
@@ -26,24 +28,40 @@ namespace sn {
 
     };
 
+
     class ZkNamingServer : public NamingServer {
     private:
+        struct WatchContext {
+            SubscribeFunc func;
+            void *param;
+            string path;
+            string service;
+            vector<string> val;
+
+            WatchContext(SubscribeFunc func, void *param, string &path, const string_view &service)
+                    : func(func), param(param), path(path), service(service) {}
+        };
+
+
         static void watcherZookeeper(zhandle_t *zh, int type,
                                      int state, const char *path, void *watcherCtx);
+
         static void watcherService(zhandle_t *zh, int type,
-                                     int state, const char *path, void *watcherCtx);
+                                   int state, const char *path, void *watcherCtx);
 
     private:
         zhandle_t *handle;
         clientid_t clientId{};
         ZkConfig config;
+        boost::unordered_map<string, shared_ptr<WatchContext>> subscribeMap;
+        mutex subscribeLock;
 
     public:
         explicit ZkNamingServer(const ZkConfig &config);
 
         ~ZkNamingServer();
 
-        unique_ptr <vector<string>> lookup(const string_view &service) override;
+        unique_ptr<vector<string>> lookup(const string_view &service) override;
 
         unique_ptr<vector<string>> subscribe(const string_view &serviceName, SubscribeFunc func, void *param) override;
 
