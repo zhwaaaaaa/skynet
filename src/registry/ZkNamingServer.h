@@ -18,6 +18,10 @@ namespace sn {
         string zkNamespace;
         string registerStr;
 
+        ZkConfig(const string &ipHosts, int recvTimeout, const string &password, const string &zkNamespace,
+                 const string &registerStr) : ipHosts(ipHosts), recvTimeout(recvTimeout), password(password),
+                                              zkNamespace(zkNamespace), registerStr(registerStr) {}
+
         ZkConfig() = default;
 
         explicit ZkConfig(const ZkConfig &oth)
@@ -53,7 +57,7 @@ namespace sn {
         zhandle_t *handle;
         clientid_t clientId{};
         ZkConfig config;
-        boost::unordered_map<string, shared_ptr<WatchContext>> subscribeMap;
+        boost::unordered_map<string, shared_ptr < WatchContext>> subscribeMap;
         mutex subscribeLock;
 
     public:
@@ -61,9 +65,9 @@ namespace sn {
 
         ~ZkNamingServer();
 
-        unique_ptr<vector<string>> lookup(const string_view &service) override;
+        unique_ptr <vector<string>> lookup(const string_view &service) override;
 
-        unique_ptr<vector<string>> subscribe(const string_view &serviceName, SubscribeFunc func, void *param) override;
+        unique_ptr <vector<string>> subscribe(const string_view &serviceName, SubscribeFunc func, void *param) override;
 
         void unsubscribe(const string_view &serviceName) override;
 

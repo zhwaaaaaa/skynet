@@ -35,10 +35,11 @@ namespace sn {
     }
 
     ZkNamingServer::ZkNamingServer(const ZkConfig &conf) {
+        handle = nullptr;
         config = conf;
         config.zkNamespace = "/";
-        if (!config.zkNamespace.empty()) {
-            config.zkNamespace.append(config.zkNamespace);
+        if (!conf.zkNamespace.empty()) {
+            config.zkNamespace.append(conf.zkNamespace);
         } else {
             config.zkNamespace.append("skynet");
         }
@@ -68,12 +69,13 @@ namespace sn {
         subscribeMap.insert_or_assign(path, make_shared<WatchContext>(func, param, path, serviceName));
         Stat stat{};
         int r = zoo_exists(handle, path.c_str(), 0, &stat);
+
         if (r == ZNONODE) {
             r = zoo_create(handle, path.c_str(), nullptr, -1, &ZOO_OPEN_ACL_UNSAFE, 0,
                            nullptr, 0);
         }
-        unique_ptr<vector<string>> ret;
 
+        unique_ptr<vector<string>> ret(new vector<string>);
         if (r != ZOK) {
             return ret;
         }
@@ -82,6 +84,7 @@ namespace sn {
             for (int i = 0; i < val.count; ++i) {
                 ret->emplace_back(val.data[i]);
             }
+            LOG(INFO) << "subscribe service " << serviceName;
         } else {
             LOG(WARNING) << "subscribe " << serviceName << " fail:" << zerror(r);
         }
@@ -126,7 +129,6 @@ namespace sn {
         }
         path.append("/");
         path.append(config.registerStr);
-        path.append("/");
 
         i = zoo_exists(handle, path.c_str(), 0, &stat);
         if (i == ZOK) {
@@ -150,11 +152,15 @@ namespace sn {
 
     unique_ptr<vector<string>> ZkNamingServer::lookup(const string_view &service) {
         String_vector val{};
-        unique_ptr<vector<string>> ret;
+        unique_ptr<vector<string>> ret(new vector<string>);
+        string path = config.zkNamespace;
+        path.append("/");
+        path.append(service);
         int r;
-        if ((r = zoo_get_children(handle, config.zkNamespace.c_str(), 0, &val)) == ZOK) {
+        if ((r = zoo_get_children(handle, path.c_str(), 0, &val)) == ZOK) {
             for (int i = 0; i < val.count; ++i) {
-                ret->emplace_back(val.data[i]);
+                char *serv = val.data[i];
+                ret->push_back(serv);
             }
         } else {
             LOG(WARNING) << "error lookup " << zerror(r);

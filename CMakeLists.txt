@@ -62,7 +62,7 @@ add_library(snThread ${THREAD_FILES})
 target_link_libraries(snThread glog gflags pthread)
 
 add_library(skynetCoreLib ${SOURCE_FILES})
-target_link_libraries(skynetCoreLib glog gflags snThread uv)
+target_link_libraries(skynetCoreLib glog gflags snThread uv zookeeper_mt)
 
 add_executable(skynet src/main.cpp)
 target_link_libraries(skynet skynetCoreLib)
