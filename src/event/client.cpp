@@ -19,23 +19,22 @@ namespace sn {
         eps.reserve(epstr.size());
         for (const string &str:epstr) {
             EndPoint ep;
-            str2endpoint(str.c_str(),&ep);
+            str2endpoint(str.c_str(), &ep);
             client.addServiceChannel(ep);
             eps.push_back(ep);
         }
 
-
         auto *serviceKeeper = static_cast<ServiceKeeper *>(param);
         serviceKeeper->servChanged(eps);
-       /* auto iterator = client.serviceMap.find(serv);
-        if (iterator != client.serviceMap.end()) {
-            // 取消订阅的时候回调函数是同步执行的。所以取消订阅的时候service一定没有人用了。
-            CHECK(!iterator->second->count());
-            // 需要删除malloc的key
-            const char *keyVal = iterator->first.data();
-            client.serviceMap.erase(iterator);
-            free((void *) keyVal);
-        }*/
+        /* auto iterator = client.serviceMap.find(serv);
+         if (iterator != client.serviceMap.end()) {
+             // 取消订阅的时候回调函数是同步执行的。所以取消订阅的时候service一定没有人用了。
+             CHECK(!iterator->second->count());
+             // 需要删除malloc的key
+             const char *keyVal = iterator->first.data();
+             client.serviceMap.erase(iterator);
+             free((void *) keyVal);
+         }*/
     }
 
     ServiceKeeper *Client::getByService(const ServiceNamePtr serv) {
@@ -49,6 +48,14 @@ namespace sn {
     }
 
 
+    /**
+     * 这里要完成2件事情：
+     * 1.确认要订阅naming server的服务。
+     * 2.尽可能要连接上目标服务器
+     * @param channelId
+     * @param key
+     * @return
+     */
     int Client::enableService(uint32_t channelId, const string_view &key) {
         auto iterator = serviceMap.find(key);
         if (iterator != serviceMap.end()) {
@@ -64,8 +71,18 @@ namespace sn {
             y->care(channelId);
             serviceMap.insert(make_pair(x, y));
 
-            Thread::local<NamingServer>().subscribe(x, onNamingServerNotify, y.get());
-            return 1;
+            auto ptr = namingServer->subscribe(x, onNamingServerNotify, y.get());
+            vector<EndPoint> eps;
+            eps.reserve(ptr->size());
+            for_each(ptr->begin(), ptr->end(), [&](const string &str) {
+                EndPoint ep;
+                str2endpoint(str.c_str(), &ep);
+                addServiceChannel(ep);
+                eps.push_back(ep);
+            });
+
+            y->servChanged(eps);
+            return eps.size();
         }
     }
 

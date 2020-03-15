@@ -47,7 +47,7 @@ namespace sn {
     Channel *ClientResponseHandler::findTransferChannel(IoBuf &buf) {
         uint32_t val;
         auto *ptr = static_cast<uint32_t *>(buf.convertOrCopyLen(sizeof(val), &val, RESP_CLIENT_ID_OFFSET));
-        return Thread::local<Server>().getResponseChannel(*ptr);
+        return Thread::local<Client>().getResponseChannel(*ptr);
     }
 
     ServerAppHandler::ServerAppHandler(shared_ptr<Channel> &ch, vector<string> &services)
