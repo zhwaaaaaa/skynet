@@ -5,6 +5,7 @@
 
 #include <netinet/in.h>                          // in_addr
 #include <iostream>                              // std::ostream
+#include <boost/functional/hash.hpp>
 #include "HASH_MAP_HPP.h"
 
 namespace sn {
@@ -154,6 +155,7 @@ inline std::ostream &operator<<(std::ostream &os, sn::ip_t ip) {
     return os << sn::ip2str(ip);
 }
 
+
 namespace SN_HASH_NAMESPACE {
 
     template<>
@@ -166,6 +168,13 @@ namespace SN_HASH_NAMESPACE {
 }
 
 namespace sn {
+
+    inline std::size_t hash_value(const sn::EndPoint &o) {
+        std::size_t seed = 0;
+        boost::hash_combine(seed, sn::ip2int(o.ip));
+        boost::hash_combine(seed, o.port);
+        return seed;
+    }
 // Overload operators for EndPoint in the same namespace due to ADL.
     inline bool operator<(EndPoint p1, EndPoint p2) {
         return (p1.ip != p2.ip) ? (p1.ip < p2.ip) : (p1.port < p2.port);

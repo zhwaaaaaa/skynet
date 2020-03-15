@@ -8,9 +8,9 @@
 #include "reactor.h"
 #include "service_keeper.h"
 #include "channel_keeper.h"
-#include <util/HASH_MAP_HPP.h>
 #include <registry/naming_server.h>
 #include <util/Convert.h>
+#include <boost/unordered_map.hpp>
 
 namespace sn {
     using ServiceNamePtr = Segment<uint8_t> *;
@@ -20,9 +20,9 @@ namespace sn {
         static void onNamingServerNotify(const string_view &serv, const vector<string> &eps, void *param);
 
     private:
-        hash_map<string_view, shared_ptr<ServiceKeeper>> serviceMap;
-        hash_map<EndPoint, shared_ptr<ChannelKeeper>> channelMap;
-        hash_map<uint32_t, ChannelPtr> responseChs;
+        boost::unordered_map<string_view, shared_ptr<ServiceKeeper>> serviceMap;
+        boost::unordered_map<EndPoint, shared_ptr<ChannelKeeper>> channelMap;
+        boost::unordered_map<uint32_t, ChannelPtr> responseChs;
         NamingServer *namingServer;
     protected:
 
