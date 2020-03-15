@@ -51,11 +51,13 @@ namespace sn {
 
 
     constexpr const uint32_t RESP_HEADER_LEN = sizeof(Response);//19
-    constexpr const uint32_t RESP_HEADER_CONTENT_LEN = sizeof(Response) - 1;//18
 
     constexpr const uint32_t REQ_SERVICE_NAME_LEN_OFFSET = offsetof(Request, servNameLen);
     constexpr const uint32_t REQ_CLIENT_ID_OFFSET = offsetof(Request, clientId);
     constexpr const uint32_t REQ_SERVER_ID_OFFSET = offsetof(Request, serverId);
+
+    constexpr const uint32_t RESP_CLIENT_ID_OFFSET = offsetof(Response, clientId);
+    constexpr const uint32_t RESP_SERVER_ID_OFFSET = offsetof(Response, serverId);
 
 
     class ChannelHandler {

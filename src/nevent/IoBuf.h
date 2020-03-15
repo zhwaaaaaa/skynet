@@ -73,14 +73,14 @@ namespace sn {
          */
         void writePtr(char **buf, size_t *len) {
             uint32_t canWrite = capacity - size;
-            if (!head) {
+            if (!head || canWrite == 0) {
                 extendBlock();
-                *buf = head->buf;
+                *buf = tail->buf;
                 *len = BLOCK_DATA_LEN;
             } else if (canWrite < 1024 && !size) {
                 clearAll();
                 extendBlock();
-                *buf = head->buf;
+                *buf = tail->buf;
                 *len = BLOCK_DATA_LEN;
             } else {
                 *buf = tail->buf + tailOffset;
@@ -164,18 +164,65 @@ namespace sn {
             CHECK(tailOffset <= BLOCK_DATA_LEN);
         }
 
-        inline void extendBlock(uint32_t extSize = 1) {
-            CHECK(extSize);
-            capacity += extSize * BLOCK_DATA_LEN;
-            if (!head) {
+        inline void extendBlock() {
+            if (!tail) {
                 head = tail = BlockPool::get();
-                --extSize;
-            }
-            while (extSize--) {
+                return;
+            } else if (tailOffset == BLOCK_DATA_LEN) {
+                CHECK(capacity == size);
                 Block *b = BlockPool::get();
                 tail->next = b;
                 tail = b;
+            } else {
+                int canWriteSize = (int) (capacity - size);
+                // 还有一整个Block都没有使用不允许申请新的内存
+                CHECK(canWriteSize > 0 && canWriteSize < BLOCK_DATA_LEN);
+                tail->next = BlockPool::get();
             }
+            capacity += BLOCK_DATA_LEN;
+        }
+
+        /**
+        * 修改IoBuffer中的值
+        * @tparam T
+        * @param v
+        * @param offset
+        * @return
+        */
+        void modifyData(const void *ptr, uint32_t len, uint32_t offset = 0) {
+            CHECK(size >= len + offset);
+            Block *tmp = head;
+            if (offset) {
+                offset += headOffset;
+                Block *next = tmp->next;
+                while (offset >= BLOCK_DATA_LEN) {
+                    CHECK(next);
+                    tmp = next;
+                    next = tmp->next;
+                    offset -= BLOCK_DATA_LEN;
+                }
+            } else {
+                offset = headOffset;
+            }
+
+            const char *src = static_cast<const char *>(ptr);
+            if (len + offset <= BLOCK_DATA_LEN) {
+                memcpy(tmp->buf + offset, src, len);
+                return;
+            }
+
+            uint32_t n = BLOCK_DATA_LEN - offset;
+            memcpy(tmp->buf + offset, src, n);
+
+            int t = n;
+            int left = len - n;
+            do {
+                tmp = tmp->next;
+                n = std::min(left, (int) BLOCK_DATA_LEN);
+                memcpy(tmp->buf, src + t, n);
+                t += n;
+                left -= n;
+            } while (left);
         }
 
         /**
@@ -481,6 +528,47 @@ namespace sn {
         void firstDataPtr(uv_buf_t &uvBuf) const {
             uvBuf.base = head->buf + headOffset;
             uvBuf.len = BLOCK_DATA_LEN - headOffset;
+        }
+
+        template<class T>
+        void write(const T &val) {
+            const char *src = reinterpret_cast<const char *>(&val);
+            char *p;
+            size_t canWriteSize;
+
+            int cped = 0;
+            int left = (int) sizeof(T);
+            do {
+                writePtr(&p, &canWriteSize);
+                int cp = std::min(left, (int) canWriteSize);
+                memcpy(p, src + cped, cp);
+                left -= cp;
+                cped += cp;
+            } while (left > 0);
+
+            CHECK(left == 0);
+            size += sizeof(T);
+        }
+
+        void write(const void *ptr, size_t len) {
+            CHECK(ptr && len);
+
+            const char *src = static_cast<const char *>(ptr);
+            char *p;
+            size_t canWriteSize;
+
+            int cped = 0;
+            int left = (int) len;
+            do {
+                writePtr(&p, &canWriteSize);
+                int cp = std::min(left, (int) canWriteSize);
+                memcpy(p, src + cped, cp);
+                left -= cp;
+                cped += cp;
+            } while (left > 0);
+
+            CHECK(left == 0);
+            size += len;
         }
 
     };

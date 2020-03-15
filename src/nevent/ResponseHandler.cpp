@@ -13,7 +13,7 @@
 namespace sn {
 
 
-    ResponseHandler::ResponseHandler(const shared_ptr<Channel> &ch) : ChannelHandler(ch) {
+    ResponseHandler::ResponseHandler(shared_ptr<Channel> &ch) : ChannelHandler(ch) {
         bzero(tmpHead, sizeof(tmpHead));
     }
 
@@ -25,7 +25,7 @@ namespace sn {
         return 0;
     }
 
-    ClientResponseHandler::ClientResponseHandler(const shared_ptr<Channel> &ch) : ResponseHandler(ch) {
+    ClientResponseHandler::ClientResponseHandler(ChannelPtr &ch) : ResponseHandler(ch) {
         // client response handler负责转发server的的返回。
         // 但它也负责写ClientAppHandler转发的请求
         // 所以要注册自己的channel到Client上。以便于ClientAppHandler可以使用
@@ -45,18 +45,41 @@ namespace sn {
     }
 
     Channel *ClientResponseHandler::findTransferChannel(IoBuf &buf) {
-        return nullptr;
+        uint32_t val;
+        auto *ptr = static_cast<uint32_t *>(buf.convertOrCopyLen(sizeof(val), &val, RESP_CLIENT_ID_OFFSET));
+        return Thread::local<Server>().getResponseChannel(*ptr);
     }
 
-    ServerAppHandler::ServerAppHandler(const shared_ptr<Channel> &ch, vector<string> &&provideServs)
-            : ResponseHandler(ch), provideServs(provideServs) {}
+    ServerAppHandler::ServerAppHandler(shared_ptr<Channel> &ch, vector<string> &services)
+            : ResponseHandler(ch) {
+        auto &server = Thread::local<Server>();
+        IoBuf buf;
+        buf.write<uint8_t>(MT_SH_RESP);
+        buf.write<uint32_t>(0);
+        buf.write<uint16_t>((uint16_t) CONVERT_VAL_16(services.size()));
+        uint32_t pckLen = 2;
+        for (const auto &serv:services) {
+            buf.write((uint8_t) (0xFF & serv.size()));
+            int len = server.addServerAppChannel(this->ch, serv);
+            buf.write(serv.data(), serv.size());
+            buf.write((uint8_t) len);
+            pckLen += len + 2;
+            provideServs.push_back(serv);
+        }
+        buf.modifyData<uint32_t>(pckLen, 1);
+        ch->writeMsg(buf);
+    }
 
     ServerAppHandler::~ServerAppHandler() {
-        Thread::local<Server>().removeServerAppChannel(ch, provideServs);
+        for (const auto &serv:provideServs) {
+            Thread::local<Server>().removeServerAppChannel(ch, serv);
+        }
     }
 
     Channel *ServerAppHandler::findTransferChannel(IoBuf &buf) {
-        return nullptr;
+        uint32_t val;
+        auto *ptr = static_cast<uint32_t *>(buf.convertOrCopyLen(sizeof(val), &val, RESP_SERVER_ID_OFFSET));
+        return Thread::local<Server>().getResponseChannel(*ptr);
     }
 
 

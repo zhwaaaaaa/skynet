@@ -18,7 +18,7 @@ namespace sn {
         //buffer
         char tmpHead[sizeof(Response)];// 用着sizeof(ResponseId)个字节来解决header粘包问题
     public:
-        explicit ResponseHandler(const shared_ptr<Channel> &ch);
+        explicit ResponseHandler(ChannelPtr &ch);
 
     protected:
         int onMessage(IoBuf &buf) override;
@@ -31,7 +31,7 @@ namespace sn {
      */
     class ClientResponseHandler : public ResponseHandler {
     public:
-        explicit ClientResponseHandler(const shared_ptr<Channel> &ch);
+        explicit ClientResponseHandler(ChannelPtr &ch);
 
         ~ClientResponseHandler() override;
 
@@ -46,7 +46,7 @@ namespace sn {
     private:
         vector<string> provideServs;
     public:
-        ServerAppHandler(const shared_ptr<Channel> &ch, vector<string> &&provideServs);
+        ServerAppHandler(ChannelPtr &ch, vector<string> &provideServs);
 
         ~ServerAppHandler() override;
 

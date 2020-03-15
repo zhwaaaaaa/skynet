@@ -1,8 +1,10 @@
 //
 // Created by dear on 2020/2/10.
 //
+#include <event/server.h>
 #include "shake_hands_handler.h"
 #include "ResponseHandler.h"
+#include "RequestHandler.h"
 
 namespace sn {
 
@@ -11,6 +13,12 @@ namespace sn {
     }
 
     int ShakeHandsHandler::onMessage(IoBuf &buf) {
+
+        auto msgType = buf.readUint8();
+        if (msgType != MT_CONSUMER_SH && msgType != MT_PROVIDER_SH) {
+            return -1;
+        }
+
         vector<string> servs;
         uint32_t size = buf.getSize();
         serviceSize = CONVERT_VAL_16(buf.read<uint16_t>(5));
@@ -32,15 +40,20 @@ namespace sn {
             LOG(WARNING) << "decode size expected " << size << " but got " << offset;
             return -1;
         }
-        doShakeHands(servs);
-        return 0;
+        auto i = doShakeHands(servs);
+        if (i < 0) {
+            LOG(WARNING) << "shake hands error";
+        }
+        return i;
     }
 
     ClientShakeHandsHandler::ClientShakeHandsHandler(const shared_ptr<Channel> &ch) : ShakeHandsHandler(ch) {
     }
 
     int ClientShakeHandsHandler::doShakeHands(vector<string> &services) {
-        LOG(INFO) << services[0];
+        auto pHandler = ch->replaceHandler(new ClientAppHandler(ch, services));
+        CHECK(pHandler == this);
+        delete this;
         return 0;
     }
 
@@ -49,7 +62,9 @@ namespace sn {
     }
 
     int ServerShakeHandsHandler::doShakeHands(vector<string> &services) {
-        LOG(INFO) << services[0];
+        auto pHandler = ch->replaceHandler(new ServerAppHandler(ch, services));
+        CHECK(pHandler == this);
+        delete this;
         return 0;
     }
 }

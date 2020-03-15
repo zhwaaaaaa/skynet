@@ -25,7 +25,7 @@ namespace sn {
         //buffer
         char tmpHead[256];// 用着256个字节来解决header粘包问题
     public:
-        explicit RequestHandler(const shared_ptr <Channel> &ch);
+        explicit RequestHandler(ChannelPtr &ch);
 
     protected:
 
@@ -41,7 +41,7 @@ namespace sn {
     private:
         vector<string> requiredService;
     public:
-        explicit ClientAppHandler(const shared_ptr<Channel> &ch, vector<string> &&serv);
+        explicit ClientAppHandler(ChannelPtr &ch, vector<string> &services);
 
         ~ClientAppHandler() override;
 
@@ -56,7 +56,7 @@ namespace sn {
 
     class ServerReqHandler : public RequestHandler {
     public:
-        explicit ServerReqHandler(const shared_ptr<Channel> &ch);
+        explicit ServerReqHandler(ChannelPtr &ch);
 
         ~ServerReqHandler() override;
 

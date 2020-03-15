@@ -8,7 +8,7 @@
 #include "RequestHandler.h"
 
 namespace sn {
-    RequestHandler::RequestHandler(const shared_ptr<Channel> &ch)
+    RequestHandler::RequestHandler(ChannelPtr &ch)
             : ChannelHandler(ch) {
         bzero(tmpHead, sizeof(tmpHead));
     }
@@ -55,10 +55,25 @@ namespace sn {
     }
 
 
-
-    ClientAppHandler::ClientAppHandler(const shared_ptr<Channel> &ch, vector<string> &&serv)
-            : RequestHandler(ch), requiredService(serv) {
-        Thread::local<Client>().addResponseChannel(this->ch);
+    ClientAppHandler::ClientAppHandler(shared_ptr<Channel> &ch, vector<string> &serv)
+            : RequestHandler(ch){
+        auto &client = Thread::local<Client>();
+        IoBuf buf;
+        buf.write<uint8_t>(MT_SH_RESP);
+        buf.write<uint32_t>(0);
+        buf.write<uint16_t>((uint16_t) CONVERT_VAL_16(serv.size()));
+        uint32_t pckLen = 2;
+        for (const auto &serv:serv) {
+            buf.write((uint8_t) (0xFF & serv.size()));
+            int len = client.enableService(ch->channelId(), serv);
+            buf.write(serv.data(), serv.size());
+            buf.write((uint8_t) len);
+            pckLen += len + 2;
+            requiredService.push_back(serv);
+        }
+        buf.modifyData<uint32_t>(pckLen, 1);
+        ch->writeMsg(buf);
+        client.addResponseChannel(this->ch);
     }
 
     ChannelGroup *ClientAppHandler::findOutCh(ServiceNamePtr serviceName) {
@@ -79,7 +94,7 @@ namespace sn {
     }
 
 
-    ServerReqHandler::ServerReqHandler(const shared_ptr<Channel> &ch) : RequestHandler(ch) {
+    ServerReqHandler::ServerReqHandler(ChannelPtr &ch) : RequestHandler(ch) {
         Thread::local<Server>().addResponseChannel(this->ch);
     }
 

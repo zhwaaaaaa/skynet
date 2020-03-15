@@ -36,7 +36,9 @@ namespace sn {
         ChannelHandler *handler = static_cast<ChannelHandler *>(stream->data);
         if (nread > 0) {
             handler->ioBuf.addSize(nread);
-            if (handler->onRead(nread) == 0) {
+            if (handler->onRead(nread) != 0) {
+                LOG(INFO) << "Close channel because found error onRead";
+                handler->ch->close();
             }
             // close
         } else if (nread == UV_EOF) {
@@ -64,8 +66,9 @@ namespace sn {
 
             IoBuf msg;
             ioBuf.popInto(msg, len);
-            if (onMessage(msg) != -0) {
-                return -1;
+            auto i = onMessage(msg);
+            if (i != 0) {
+                return i;
             }
             size -= len;
         }

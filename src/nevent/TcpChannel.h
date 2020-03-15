@@ -32,7 +32,8 @@ namespace sn {
         static void onConnected(uv_connect_t *req, int status) {
             TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(req->data);
             if (!status) {
-                auto pHandler = new Handler(shared_ptr<TcpChannel<Handler>>(ch));
+                ChannelPtr ptr = make_shared<TcpChannel<Handler>>();
+                auto pHandler = new Handler(ptr);
                 uv_stream_t *stream = req->handle;
                 stream->data = pHandler;
                 uv_read_start(stream, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
@@ -120,7 +121,8 @@ namespace sn {
             sockaddr_in *in = reinterpret_cast<sockaddr_in *>(&storage);
             raddr = EndPoint(*in);
             LOG(INFO) << "Accept connection from " << raddr;
-            handle.data = new Handler(shared_ptr<TcpChannel<Handler>>(this));
+            ChannelPtr ptr = shared_ptr<TcpChannel<Handler>>(this);
+            handle.data = new Handler(ptr);
             uv_tcp_keepalive(&handle, 1, 3600);
             uv_tcp_nodelay(&handle, 0);
             uv_read_start(client, ChannelHandler::onMemoryAlloc, ChannelHandler::onMessageArrived);
