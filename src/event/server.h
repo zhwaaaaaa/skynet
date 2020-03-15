@@ -58,7 +58,7 @@ namespace sn {
         }
 
         void onLoopStop() override {
-            Thread::localRelease<Server()>();
+            Thread::localRelease<Server>();
         }
 
 
