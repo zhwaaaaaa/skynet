@@ -8,10 +8,11 @@
 #include "reactor.h"
 #include "service_keeper.h"
 #include <util/Convert.h>
+#include <registry/naming_server.h>
 
 namespace sn {
-    using ServiceNamePtr = Segment<uint8_t> *;
-    using BodyDescPtr = Segment<uint32_t> *;
+    using ServiceNamePtr = Segment <uint8_t> *;
+    using BodyDescPtr = Segment <uint32_t> *;
     struct ServiceDesc {
         ServiceNamePtr name;
         BodyDescPtr param;
@@ -22,7 +23,7 @@ namespace sn {
     private:
         uint32_t index;
     protected:
-        vector<ChannelPtr> chs;
+        vector <ChannelPtr> chs;
     public:
         ChannelHolder();
 
@@ -45,12 +46,21 @@ namespace sn {
 
     class Server : public Reactor {
     private:
-        hash_map<string_view, shared_ptr<ChannelHolder>> serverAppChs;
+        hash_map<string_view, shared_ptr < ChannelHolder>> serverAppChs;
         hash_map<uint32_t, ChannelPtr> responseChs;
+        NamingServer *namingServer;
+    public:
+        explicit Server(NamingServer &server);
+
     protected:
         void onLoopStart() override {
             Thread::local<Server>(this);
         }
+
+        void onLoopStop() override {
+            Thread::localRelease<Server()>();
+        }
+
 
     public:
         int addServerAppChannel(ChannelPtr &ptr, const string &serv);
@@ -64,6 +74,7 @@ namespace sn {
         void addResponseChannel(ChannelPtr &respCh);
 
         void removeResponseChannel(uint32_t channelId);
+
     };
 }
 

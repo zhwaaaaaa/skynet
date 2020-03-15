@@ -3,18 +3,29 @@
 #include <nevent/shake_hands_handler.h>
 #include <event/server.h>
 #include <nevent/RequestHandler.h>
+#include <registry/ZkNamingServer.h>
 
 using namespace sn;
 
 int main() {
+    ZkConfig config(
+            "hadoop0:2181,hadoop1:2181,hadoop2:2181",
+            5000,
+            "",
+            "skynet",
+            "192.168.106.102:9999"
+    );
+    ZkNamingServer zkNamingServer(config);
+
     TcpListener<ServerShakeHandsHandler> serverAppListener(EndPoint(IP_ANY, 9998));
-    Server server;
+    Server server(zkNamingServer);
+
     server.addLoopable(serverAppListener);
     TcpListener<ServerReqHandler> serverTransferListener(EndPoint(IP_ANY, 9999));
     server.addLoopable(serverTransferListener);
     server.start(true);
 
-    Client client;
+    Client client(zkNamingServer);
     TcpListener<ClientShakeHandsHandler> clientAppListener(EndPoint(IP_ANY, 9997));
     client.addLoopable(clientAppListener);
     client.start();

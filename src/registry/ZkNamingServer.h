@@ -24,7 +24,7 @@ namespace sn {
 
         ZkConfig() = default;
 
-        explicit ZkConfig(const ZkConfig &oth)
+        ZkConfig(const ZkConfig &oth)
                 : ipHosts(oth.ipHosts),
                   recvTimeout(oth.recvTimeout), password(oth.password),
                   zkNamespace(oth.zkNamespace), registerStr(oth.zkNamespace) {

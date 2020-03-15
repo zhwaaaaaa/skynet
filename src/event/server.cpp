@@ -51,6 +51,9 @@ namespace sn {
         return chs.size();
     }
 
+    Server::Server(NamingServer &server):namingServer(&server) {
+    }
+
 
     int Server::addServerAppChannel(ChannelPtr &channelPtr, const string &serv) {
 
@@ -113,5 +116,6 @@ namespace sn {
         assert(iterator != responseChs.end());
         responseChs.erase(iterator);
     }
+
 
 }

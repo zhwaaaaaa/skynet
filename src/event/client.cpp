@@ -154,4 +154,6 @@ namespace sn {
         responseChs.erase(iterator);
     }
 
+    Client::Client(NamingServer *namingServer) : namingServer(namingServer) {}
+
 }

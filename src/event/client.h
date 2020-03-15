@@ -23,11 +23,11 @@ namespace sn {
         hash_map<string_view, shared_ptr<ServiceKeeper>> serviceMap;
         hash_map<EndPoint, shared_ptr<ChannelKeeper>> channelMap;
         hash_map<uint32_t, ChannelPtr> responseChs;
+        NamingServer *namingServer;
     protected:
 
         void onLoopStart() override {
             Thread::local<Client>(this);
-            Thread::local<NamingServer>(new DemoNamingServer);
         }
 
         void onLoopStop() override {
@@ -35,6 +35,7 @@ namespace sn {
         }
 
     public:
+        Client(NamingServer *namingServer);
 
         ServiceKeeper *getByService(ServiceNamePtr serv);
 
