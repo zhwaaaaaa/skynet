@@ -7,8 +7,8 @@
 
 #include <util/endpoint.h>
 #include <vector>
-#include <util/HASH_MAP_HPP.h>
 #include <util/func_time.h>
+#include <boost/unordered_map.hpp>
 #include <memory>
 
 namespace sn {
@@ -41,7 +41,7 @@ namespace sn {
         };
 
     private:
-        hash_map<string_view, FuncWithParam> subscribeMap;
+        boost::unordered_map<string_view, FuncWithParam> subscribeMap;
 
     public:
         unique_ptr<vector<string> > lookup(const string_view &service) override;

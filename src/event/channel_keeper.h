@@ -9,22 +9,25 @@
 #include <string_view>
 #include <nevent/channel.h>
 #include <memory>
+#include <boost/unordered_set.hpp>
+
 
 namespace sn {
-
     using std::string_view;
+
     using ChannelPtr = std::shared_ptr<Channel>;
+
 
     class ChannelKeeper {
     private:
         ChannelPtr channelPtr;
-        hash_set<string_view> services;
+        boost::unordered_set<string_view> services;
     public:
         explicit ChannelKeeper(Channel *channel);
 
         ~ChannelKeeper();
 
-        const hash_set<string_view> &getService() {
+        const boost::unordered_set<string_view> &getService() {
             return services;
         }
 

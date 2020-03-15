@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 #include <nevent/channel.h>
-#include <util/HASH_MAP_HPP.h>
+#include <boost/unordered_map.hpp>
+#include <boost/unordered_set.hpp>
 #include "channel_keeper.h"
 
 namespace sn {
@@ -31,8 +32,8 @@ namespace sn {
     class ServiceKeeper : public ChannelGroup {
     private:
         const string_view serv;
-        hash_set<uint32_t> careCh;
-        hash_map<EndPoint, shared_ptr<ChannelKeeper>> chMap;
+        boost::unordered_set<uint32_t> careCh;
+        boost::unordered_map<EndPoint, shared_ptr<ChannelKeeper>> chMap;
         vector<EndPoint> endPoints;
         uint32_t nextIndex;
 

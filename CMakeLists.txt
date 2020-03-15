@@ -26,13 +26,9 @@ set(SOURCE_FILES
         #util
         src/util/endpoint.cpp
         src/util/endpoint.h
-        src/util/HASH_MAP_HPP.h
         src/util/func_time.h
         src/util/func_time.cpp
         src/util/Convert.h
-
-        #third_part
-        src/util/third_part/superfasthash/superfasthash.c
         # new event
         src/nevent/IoBuf.h
         src/nevent/IoBuf.cpp

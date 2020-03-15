@@ -48,7 +48,7 @@ namespace sn {
             if (chMap.find(ep) == chMap.end()) {
                 auto y = Thread::local<Client>().getServiceChannel(ep);
                 chMap.insert(make_pair(ep, y));
-                y->addService(serv);
+                y->addService(serv.data());
             }
         }
 

@@ -6,7 +6,6 @@
 #include <netinet/in.h>                          // in_addr
 #include <iostream>                              // std::ostream
 #include <boost/functional/hash.hpp>
-#include "HASH_MAP_HPP.h"
 
 namespace sn {
 
@@ -153,18 +152,6 @@ inline std::ostream &operator<<(std::ostream &os, const sn::IPStr &ip_str) {
 
 inline std::ostream &operator<<(std::ostream &os, sn::ip_t ip) {
     return os << sn::ip2str(ip);
-}
-
-
-namespace SN_HASH_NAMESPACE {
-
-    template<>
-    struct hash<sn::EndPoint> {
-        size_t operator()(const sn::EndPoint s) const {
-            return static_cast<size_t >(s.port) << 32 | sn::ip2int(s.ip);
-        }
-    };
-
 }
 
 namespace sn {
