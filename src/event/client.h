@@ -35,7 +35,7 @@ namespace sn {
         }
 
     public:
-        Client(NamingServer *namingServer);
+        explicit Client(NamingServer *namingServer);
 
         ServiceKeeper *getByService(ServiceNamePtr serv);
 
