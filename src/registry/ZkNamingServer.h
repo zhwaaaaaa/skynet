@@ -14,19 +14,18 @@ namespace sn {
     struct ZkConfig {
         string ipHosts;
         int recvTimeout;
-        string password;
         string zkNamespace;
         string registerStr;
 
-        ZkConfig(const string &ipHosts, int recvTimeout, const string &password, const string &zkNamespace,
-                 const string &registerStr) : ipHosts(ipHosts), recvTimeout(recvTimeout), password(password),
+        ZkConfig(const string &ipHosts, int recvTimeout, const string &zkNamespace,
+                 const string &registerStr) : ipHosts(ipHosts), recvTimeout(recvTimeout),
                                               zkNamespace(zkNamespace), registerStr(registerStr) {}
 
         ZkConfig() = default;
 
         ZkConfig(const ZkConfig &oth)
                 : ipHosts(oth.ipHosts),
-                  recvTimeout(oth.recvTimeout), password(oth.password),
+                  recvTimeout(oth.recvTimeout),
                   zkNamespace(oth.zkNamespace), registerStr(oth.zkNamespace) {
         }
 
@@ -40,7 +39,7 @@ namespace sn {
             void *param;
             string path;
             string service;
-            vector<string> val;
+            vector <string> val;
 
             WatchContext(SubscribeFunc func, void *param, string &path, const string_view &service)
                     : func(func), param(param), path(path), service(service) {}

@@ -18,9 +18,6 @@ set(SOURCE_FILES
         src/event/server.h
         #registry
         src/registry/naming_server.h
-        src/registry/naming_server.cpp
-        src/registry/server_publisher.cpp
-        src/registry/server_publisher.h
         src/registry/ZkNamingServer.cpp
         src/registry/ZkNamingServer.h
         #util

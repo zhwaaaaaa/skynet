@@ -31,34 +31,6 @@ namespace sn {
 
     };
 
-
-    class DemoNamingServer : public NamingServer {
-    private:
-
-        struct FuncWithParam {
-            SubscribeFunc func;
-            void *param;
-        };
-
-    private:
-        boost::unordered_map<string_view, FuncWithParam> subscribeMap;
-
-    public:
-        unique_ptr<vector<string> > lookup(const string_view &service) override;
-
-        unique_ptr<vector<string>>
-        subscribe(const string_view &serviceName, SubscribeFunc func, void *param) override;
-
-        void unsubscribe(const string_view &serviceName) override;
-
-        void registerService(const string_view &service) override {
-
-        }
-
-        void unregisterService(const string_view &service) override {
-
-        }
-    };
 }
 
 
