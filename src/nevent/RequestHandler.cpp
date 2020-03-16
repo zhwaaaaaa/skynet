@@ -56,7 +56,7 @@ namespace sn {
 
 
     ClientAppHandler::ClientAppHandler(shared_ptr<Channel> &ch, vector<string> &serv)
-            : RequestHandler(ch){
+            : RequestHandler(ch) {
         auto &client = Thread::local<Client>();
         IoBuf buf;
         buf.write<uint8_t>(MT_SH_RESP);
@@ -67,8 +67,8 @@ namespace sn {
             buf.write((uint8_t) (0xFF & serv.size()));
             int len = client.enableService(ch->channelId(), serv);
             buf.write(serv.data(), serv.size());
-            buf.write((uint8_t) len);
-            pckLen += len + 2;
+            buf.write<uint8_t>(0xFF & len);
+            pckLen += serv.size() + 2;
             requiredService.push_back(serv);
         }
         buf.modifyData<uint32_t>(pckLen, 1);

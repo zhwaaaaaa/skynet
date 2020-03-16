@@ -71,7 +71,8 @@ namespace sn {
             string_view x(servName, serv.size());
             serverAppChs.insert(make_pair(x, make_shared<ChannelHolder>(channelPtr)));
             LOG(INFO) << "Server app 注册服务成功:" << x << "当前" << serverAppChs.size() << "个服务注册";
-            //TODO register to etcd
+            namingServer->registerService(x);
+            return 1;
         }
     }
 
@@ -83,7 +84,7 @@ namespace sn {
                 const char *key = iterator->first.data();
                 LOG(INFO) << "取消注册提供的服务:" << iterator->first << ",当前剩余"
                           << (serverAppChs.size() - 1) << "个服务";
-                // TODO unregistry to ETCD
+                namingServer->unregisterService(serv);
                 serverAppChs.erase(iterator);
                 free((void *) key);
             }

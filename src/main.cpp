@@ -9,12 +9,13 @@ using namespace sn;
 
 int main() {
     ZkConfig config(
-            "hadoop0:2181,hadoop1:2181,hadoop2:2181",
+            "ubuntu:2181",
             5000,
             "",
             "skynet",
-            "192.168.106.102:9999"
+            "192.168.176.128:9999"
     );
+
     ZkNamingServer zkNamingServer(config);
 
     TcpListener<ServerShakeHandsHandler> serverAppListener(EndPoint(IP_ANY, 9998));

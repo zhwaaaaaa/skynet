@@ -167,7 +167,6 @@ namespace sn {
         inline void extendBlock() {
             if (!tail) {
                 head = tail = BlockPool::get();
-                return;
             } else if (tailOffset == BLOCK_DATA_LEN) {
                 CHECK(capacity == size);
                 Block *b = BlockPool::get();
@@ -527,7 +526,8 @@ namespace sn {
 
         void firstDataPtr(uv_buf_t &uvBuf) const {
             uvBuf.base = head->buf + headOffset;
-            uvBuf.len = BLOCK_DATA_LEN - headOffset;
+            unsigned int i = BLOCK_DATA_LEN - headOffset;
+            uvBuf.len = i > size ? size : i;
         }
 
         template<class T>
@@ -544,10 +544,10 @@ namespace sn {
                 memcpy(p, src + cped, cp);
                 left -= cp;
                 cped += cp;
+                addSize(cp);
             } while (left > 0);
 
             CHECK(left == 0);
-            size += sizeof(T);
         }
 
         void write(const void *ptr, size_t len) {
@@ -565,10 +565,10 @@ namespace sn {
                 memcpy(p, src + cped, cp);
                 left -= cp;
                 cped += cp;
+                addSize(cp);
             } while (left > 0);
 
             CHECK(left == 0);
-            size += len;
         }
 
     };

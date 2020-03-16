@@ -63,7 +63,7 @@ namespace sn {
             int len = server.addServerAppChannel(this->ch, serv);
             buf.write(serv.data(), serv.size());
             buf.write((uint8_t) len);
-            pckLen += len + 2;
+            pckLen += serv.size() + 2;
             provideServs.push_back(serv);
         }
         buf.modifyData<uint32_t>(pckLen, 1);
