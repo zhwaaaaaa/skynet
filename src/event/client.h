@@ -39,6 +39,8 @@ namespace sn {
 
         ServiceKeeper *getByService(ServiceNamePtr serv);
 
+        ServiceKeeper *getByService(const string_view &serv);
+
         void addServiceChannel(EndPoint endPoint);
 
         shared_ptr<ChannelKeeper> getServiceChannel(EndPoint endPoint);

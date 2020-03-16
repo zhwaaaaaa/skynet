@@ -4,6 +4,7 @@
 
 #include "client.h"
 #include <memory>
+#include <utility>
 #include <registry/naming_server.h>
 #include <nevent/ResponseHandler.h>
 #include <nevent/io_error.h>
@@ -11,20 +12,28 @@
 
 
 namespace sn {
-    void Client::onNamingServerNotify(const string_view &serv, const vector<string> &epstr, void *param) {
 
-        auto &client = Thread::local<Client>();
+    struct ServiceChangeContext {
+        Client *client;
+        string service;
+        vector<string> epstr;
 
+        ServiceChangeContext(Client *client, const string_view &service, vector<string> epstr)
+                : client(client), service(service), epstr(std::move(epstr)) {}
+    };
+
+    void namingServerNotify(void *p) {
+        ServiceChangeContext *ctx = static_cast<ServiceChangeContext *>(p);
         vector<EndPoint> eps;
-        eps.reserve(epstr.size());
-        for (const string &str:epstr) {
+        eps.reserve(ctx->epstr.size());
+        for (const string &str:ctx->epstr) {
             EndPoint ep;
             str2endpoint(str.c_str(), &ep);
-            client.addServiceChannel(ep);
+            ctx->client->addServiceChannel(ep);
             eps.push_back(ep);
         }
 
-        auto *serviceKeeper = static_cast<ServiceKeeper *>(param);
+        ServiceKeeper *serviceKeeper = ctx->client->getByService(ctx->service);
         serviceKeeper->servChanged(eps);
         /* auto iterator = client.serviceMap.find(serv);
          if (iterator != client.serviceMap.end()) {
@@ -35,10 +44,25 @@ namespace sn {
              client.serviceMap.erase(iterator);
              free((void *) keyVal);
          }*/
+        delete ctx;
+    }
+
+    void Client::onNamingServerNotify(const string_view &serv, const vector<string> &epstr, void *param) {
+        auto *client = static_cast<Client *>(param);
+        client->sendEvent(namingServerNotify, new ServiceChangeContext(client, serv, epstr));
     }
 
     ServiceKeeper *Client::getByService(const ServiceNamePtr serv) {
         string_view key(serv->buf, serv->len);
+        auto iterator = serviceMap.find(key);
+        if (iterator == serviceMap.end()) {
+            return nullptr;
+        }
+
+        return iterator->second.get();
+    }
+
+    ServiceKeeper *Client::getByService(const string_view &key) {
         auto iterator = serviceMap.find(key);
         if (iterator == serviceMap.end()) {
             return nullptr;
@@ -71,7 +95,7 @@ namespace sn {
             y->care(channelId);
             serviceMap.insert(make_pair(x, y));
 
-            auto ptr = namingServer->subscribe(x, onNamingServerNotify, y.get());
+            auto ptr = namingServer->subscribe(x, onNamingServerNotify, this);
             vector<EndPoint> eps;
             eps.reserve(ptr->size());
             for_each(ptr->begin(), ptr->end(), [&](const string &str) {
@@ -97,7 +121,7 @@ namespace sn {
         if (!i) {
             LOG(INFO) << "disable not need service:" << key;
             // 应该用定时器延时注销
-            Thread::local<NamingServer>().unsubscribe(key);
+            namingServer->unsubscribe(key);
         }
         return i;
     }

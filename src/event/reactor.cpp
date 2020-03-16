@@ -31,6 +31,7 @@ namespace sn {
         }
     }
 
+
     void Reactor::stop() {
         if (!thread) {
             //not start
@@ -46,6 +47,30 @@ namespace sn {
         }
     }
 
+    struct AsyncContext {
+        uv_async_t uvHandle;
+        EventFunc func;
+        void *p;
+        Reactor *reactor;
+
+        AsyncContext(EventFunc func, void *p, Reactor *reactor) : func(func), p(p), reactor(reactor) {
+            uvHandle.data = this;
+        }
+    };
+
+    void Reactor::asyncEventExec(uv_async_t *handle) {
+        AsyncContext *ctx = static_cast<AsyncContext *>(handle->data);
+        ctx->func(ctx->p);
+        delete ctx;
+    }
+
+    void Reactor::sendEvent(EventFunc func, void *p) {
+        AsyncContext *ctx = new AsyncContext(func, p, this);
+        uv_async_t *async = &ctx->uvHandle;
+        uv_async_init(&loop, async, asyncEventExec);
+        uv_async_send(async);
+    }
+
     void Reactor::runInThread(uv_work_t *req) {
         Reactor *reactor = static_cast<Reactor *>(req->data);
         free(req);
@@ -57,7 +82,6 @@ namespace sn {
         free(handle);
         uv_stop(&reactor->loop);
     }
-
 
 
 }

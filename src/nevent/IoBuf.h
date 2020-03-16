@@ -297,7 +297,7 @@ namespace sn {
                 headOffset = 0;
             } else {
                 head = tmp;
-                headOffset = buf.tailOffset;
+                headOffset = offset;
                 ++tmp->ref;
             }
             size -= len;

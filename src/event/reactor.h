@@ -14,6 +14,7 @@
 
 namespace sn {
 
+    typedef void (*EventFunc)(void *p);
 
     class Reactor {
 
@@ -22,6 +23,8 @@ namespace sn {
         static void runInThread(uv_work_t *req);
 
         static void notifyStop(uv_async_t *handle);
+
+        static void asyncEventExec(uv_async_t *handle);
 
         void runLoop();
 
@@ -43,6 +46,8 @@ namespace sn {
         void addLoopable(Loopable &loopable) {
             loopable.addToLoop(&loop);
         }
+
+        void sendEvent(EventFunc func, void *p);
 
         void start(bool newThread = false);
 

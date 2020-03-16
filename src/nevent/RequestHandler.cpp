@@ -14,10 +14,14 @@ namespace sn {
     }
 
     int RequestHandler::onMessage(IoBuf &buf) {
+        uint8_t msgType = buf.readUint8();
+        if (msgType != MT_REQUEST) {
+            return -1;
+        }
 
-        uint8_t servNameLen = ioBuf.readUint8(REQ_SERVICE_NAME_LEN_OFFSET);
+        uint8_t servNameLen = buf.readUint8(REQ_SERVICE_NAME_LEN_OFFSET);
         ServiceNamePtr serviceName = static_cast<ServiceNamePtr>(
-                ioBuf.convertOrCopyLen(servNameLen + 1, tmpHead, REQ_SERVICE_NAME_LEN_OFFSET));
+                buf.convertOrCopyLen(servNameLen + 1, tmpHead, REQ_SERVICE_NAME_LEN_OFFSET));
 
         // find service and send msg;
         ChannelGroup *serviceKeeper = findOutCh(serviceName);

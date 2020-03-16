@@ -33,6 +33,8 @@ namespace sn {
         uint32_t serverId;
         uint8_t servNameLen;
         // char serviceName[servNameLen]
+        // uint8_t methodNameLen;
+        // char methodName[methodNameLen];
         // uint8_t bodyType;
         // char body[msgLen-14-servNameLen];
     }PACK_STRUCT_END

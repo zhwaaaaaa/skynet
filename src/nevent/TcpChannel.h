@@ -32,7 +32,8 @@ namespace sn {
         static void onConnected(uv_connect_t *req, int status) {
             TcpChannel<Handler> *ch = static_cast<TcpChannel<Handler> *>(req->data);
             if (!status) {
-                ChannelPtr ptr = make_shared<TcpChannel<Handler>>();
+                LOG(INFO) << "ClientResponseHandler() 连到server：" << ch->remoteAddr();
+                ChannelPtr ptr = ChannelPtr(ch);
                 auto pHandler = new Handler(ptr);
                 uv_stream_t *stream = req->handle;
                 stream->data = pHandler;

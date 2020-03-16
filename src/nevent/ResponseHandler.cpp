@@ -32,7 +32,6 @@ namespace sn {
         // 因为对于客户端来说，它需要连到外部的channel上去。所以它一定是TcpChannel
         TcpChannel<ClientResponseHandler> *channel = dynamic_cast<TcpChannel<ClientResponseHandler> *>(ch.get());
         auto point = channel->remoteAddr();
-        LOG(INFO) << "ClientResponseHandler() 连到server：" << point;
         Thread::local<Client>().getServiceChannel(point)->resetChannel(this->ch);
     }
 
