@@ -54,11 +54,11 @@ set(THREAD_FILES
 add_library(snThread ${THREAD_FILES})
 target_link_libraries(snThread glog gflags pthread)
 
-add_library(skynetCoreLib ${SOURCE_FILES})
-target_link_libraries(skynetCoreLib glog gflags snThread uv zookeeper_mt)
+add_library(skynetCoreLib ${SOURCE_FILES} ${THREAD_FILES})
+target_link_libraries(skynetCoreLib glog gflags uv zookeeper_mt)
 
-add_executable(skynet src/main.cpp)
-target_link_libraries(skynet skynetCoreLib)
+add_executable(skynet src/main.cpp ${SOURCE_FILES} ${THREAD_FILES})
+target_link_libraries(skynet  glog gflags uv zookeeper_mt pthread tcmalloc_minimal)
 
 add_subdirectory("test/thread")
 add_subdirectory("test/event")
