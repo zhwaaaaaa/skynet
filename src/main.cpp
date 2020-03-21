@@ -8,11 +8,6 @@
 
 using namespace sn;
 
-static bool ValidateRegistry_register_ip_host(const char *flagname, string &val) {
-    cout << val << endl;
-}
-
-
 DEFINE_string(registry_register_ip_host, "", "注册到zookeeper的ip和host");
 DEFINE_string(registry_zookeeper_ip_hosts, "localhost:2181", "zookeeper的ip:host");
 DEFINE_string(registry_zookeeper_namespace, "skynet", "zookeeper使用命名空间");

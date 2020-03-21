@@ -65,28 +65,6 @@ namespace sn {
             buf.headOffset = buf.tailOffset = buf.size = buf.capacity = 0;
         }
 
-        /**
-         * 获取写指针。和可写长度
-         * 必须在clear或者回收之前，调用addSize报告写好的长度
-         * @param buf
-         * @param len
-         */
-        void writePtr(char **buf, size_t *len) {
-            uint32_t canWrite = capacity - size;
-            if (!head || canWrite == 0) {
-                extendBlock();
-                *buf = tail->buf;
-                *len = BLOCK_DATA_LEN;
-            } else if (canWrite < 1024 && !size) {
-                clearAll();
-                extendBlock();
-                *buf = tail->buf;
-                *len = BLOCK_DATA_LEN;
-            } else {
-                *buf = tail->buf + tailOffset;
-                *len = canWrite;
-            }
-        }
 
         ~IoBuf() {
             clearAll();
@@ -157,6 +135,31 @@ namespace sn {
 
         }
 
+        /**
+         * 获取写指针。和可写长度
+         * 必须在clear或者回收之前，调用addSize报告写好的长度
+         * @param buf
+         * @param len
+         */
+        void writePtr(char **buf, size_t *len) {
+            size_t canWrite = BLOCK_DATA_LEN - tailOffset;
+            if (!head || !canWrite) {
+                extendBlock();
+                *buf = tail->buf;
+                *len = BLOCK_DATA_LEN;
+
+            } else if (canWrite < 1024 && !size) {
+                clearAll();
+                extendBlock();
+                *buf = tail->buf;
+                *len = BLOCK_DATA_LEN;
+
+            } else {
+                *buf = tail->buf + tailOffset;
+                *len = canWrite;
+            }
+        }
+
         inline void addSize(uint32_t writed) {
             CHECK(tail);
             size += writed;
@@ -172,6 +175,7 @@ namespace sn {
                 Block *b = BlockPool::get();
                 tail->next = b;
                 tail = b;
+                tailOffset = 0;
             } else {
                 int canWriteSize = (int) (capacity - size);
                 // 还有一整个Block都没有使用不允许申请新的内存
@@ -497,7 +501,7 @@ namespace sn {
             } else {
                 offset = headOffset;
             }
-            return (uint8_t) head->buf[offset];
+            return (uint8_t) tmp->buf[offset];
         }
 
         uint32_t dataBlockSize() const {
