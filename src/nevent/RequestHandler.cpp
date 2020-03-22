@@ -47,12 +47,13 @@ namespace sn {
             auto *resp = reinterpret_cast<Response *>(c);
             resp->msgType = MT_RESPONSE;
             // data 数据为0
-            resp->msgLen = RESP_HEADER_LEN;
+            resp->msgLen = RESP_HEADER_LEN - 5;
             // 把requestId clientId serverId copy到返回buffer中
             buf.copyIntoPtr(12, c + 5, 5);
             resp->responseCode = status == -1 ? CONVERT_VAL_8(SKYNET_ERR_NO_SERVICE)
                                               : CONVERT_VAL_8(SKYNET_ERR_TRANSFER);
             resp->bodyType = 0;
+            r.addSize(RESP_HEADER_LEN);
             ch->writeMsg(r);
         }
         return 0;

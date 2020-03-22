@@ -46,7 +46,7 @@ namespace sn {
     }
 
     BlockPool::~BlockPool() {
-        for (int i = current; i >= 0; --i) {
+        for (int i = 0; i < current; ++i) {
             Block *t = head;
             CHECK(t && t->ref == 0);
             head = t->next;

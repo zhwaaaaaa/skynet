@@ -15,7 +15,7 @@
 namespace sn {
 
     struct Block {
-        uint32_t ref;
+        int32_t ref;
         Block *next;
         char buf[];
     };
@@ -90,14 +90,14 @@ namespace sn {
                 tmp = next;
             } while (c > 0);
             head = tail = nullptr;
-            headOffset = tailOffset = 0;
+            size = capacity = headOffset = tailOffset = 0;
         }
 
         inline void clear(uint32_t clrSize) {
             CHECK(clrSize > 0 && clrSize <= size);
             // 有数据的情况下 tailOffset
             if (head) {
-                u_int32_t rLen = BLOCK_DATA_LEN - headOffset;
+                uint32_t rLen = BLOCK_DATA_LEN - headOffset;
                 Block *tmp = head;
                 Block *next = tmp->next;
                 while (clrSize > rLen) {
@@ -125,14 +125,55 @@ namespace sn {
                 size -= clrSize;
                 capacity -= clrSize;
                 if (!capacity) {
-                    CHECK(!head && !headOffset);
-                    tail = nullptr;
+                    CHECK(!size);
+                    head = tail = nullptr;
                     tailOffset = 0;
+                    headOffset = 0;
                 }
             } else {
                 CHECK(!tailOffset && !headOffset);
             }
 
+        }
+
+        /**
+         * 从开始截取一个IoBuf.截取到的IoBuf不可再追加写数据
+         * @param buf
+         * @param len
+         */
+        void popInto(IoBuf &buf, uint32_t len) {
+            buf.clearAll();
+            CHECK(len > 0 && len <= size);
+            buf.head = head;
+            buf.size = buf.capacity = len;
+            buf.headOffset = headOffset;
+
+            uint32_t offset = len + headOffset;
+            Block *tmp = head;
+            Block *next = tmp->next;
+            while (offset > BLOCK_DATA_LEN) {
+                CHECK(next);
+                tmp = next;
+                next = tmp->next;
+                offset -= BLOCK_DATA_LEN;
+            }
+            buf.tailOffset = offset;
+            buf.tail = tmp;
+
+            if (offset == BLOCK_DATA_LEN) {
+                head = next;
+                headOffset = 0;
+                if (!next) {
+                    tail = nullptr;
+                    tailOffset = 0;
+                }
+            } else {
+                head = tmp;
+                headOffset = offset;
+                ++tmp->ref;
+            }
+            size -= len;
+            capacity -= len;
         }
 
         /**
@@ -142,7 +183,7 @@ namespace sn {
          * @param len
          */
         void writePtr(char **buf, size_t *len) {
-            size_t canWrite = BLOCK_DATA_LEN - tailOffset;
+            size_t canWrite = capacity - size;
             if (!head || !canWrite) {
                 extendBlock();
                 *buf = tail->buf;
@@ -158,10 +199,11 @@ namespace sn {
                 *buf = tail->buf + tailOffset;
                 *len = canWrite;
             }
+            CHECK(*len + tailOffset <= BLOCK_DATA_LEN);
         }
 
         inline void addSize(uint32_t writed) {
-            CHECK(tail);
+            CHECK(tail && size + writed <= capacity);
             size += writed;
             tailOffset += writed;
             CHECK(tailOffset <= BLOCK_DATA_LEN);
@@ -218,10 +260,10 @@ namespace sn {
             memcpy(tmp->buf + offset, src, n);
 
             int t = n;
-            int left = len - n;
+            uint32_t left = len - n;
             do {
                 tmp = tmp->next;
-                n = std::min(left, (int) BLOCK_DATA_LEN);
+                n = std::min(left, BLOCK_DATA_LEN);
                 memcpy(tmp->buf, src + t, n);
                 t += n;
                 left -= n;
@@ -270,42 +312,6 @@ namespace sn {
                 t += n;
                 left -= n;
             } while (left);
-        }
-
-        /**
-         * 从开始截取一个IoBuf.截取到的IoBuf不可再追加写数据
-         * @param buf
-         * @param len
-         */
-        void popInto(IoBuf &buf, uint32_t len) {
-            buf.clearAll();
-            CHECK(len > 0 && len <= size);
-            buf.head = head;
-            buf.size = buf.capacity = len;
-            buf.headOffset = headOffset;
-
-            uint32_t offset = len + headOffset;
-            Block *tmp = head;
-            Block *next = tmp->next;
-            while (offset > BLOCK_DATA_LEN) {
-                CHECK(next);
-                tmp = next;
-                next = tmp->next;
-                offset -= BLOCK_DATA_LEN;
-            }
-            buf.tailOffset = offset;
-            buf.tail = tmp;
-
-            if (offset == BLOCK_DATA_LEN) {
-                head = next;
-                headOffset = 0;
-            } else {
-                head = tmp;
-                headOffset = offset;
-                ++tmp->ref;
-            }
-            size -= len;
-            capacity -= len;
         }
 
         /**
@@ -505,9 +511,10 @@ namespace sn {
         }
 
         uint32_t dataBlockSize() const {
+            CHECK(size);
             uint32_t sizeAndHead = headOffset + size;
             auto i = sizeAndHead / BLOCK_DATA_LEN;
-            return tailOffset ? i + 1 : i;
+            return sizeAndHead % BLOCK_DATA_LEN ? i + 1 : i;
         }
 
         void dataPtr(uv_buf_t *uvBuf, size_t len) const {
