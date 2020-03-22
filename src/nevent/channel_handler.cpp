@@ -66,9 +66,33 @@ namespace sn {
 
             IoBuf msg;
             ioBuf.popInto(msg, len);
-            auto i = onMessage(msg);
-            if (i != 0) {
-                return i;
+            auto type = msg.readUint8();
+            switch (type) {
+                case MT_CONSUMER_SH:
+                case MT_PROVIDER_SH:
+                case MT_REQUEST:
+                case MT_RESPONSE: {
+                    auto i = onMessage(msg);
+                    if (i != 0) {
+                        return i;
+                    }
+                    break;
+                }
+                    /* case  MT_SH_RESP: not hit.*/
+                case MT_HEARTBEAT_REQ: {
+                    //return MT_HEARTBEAT_RESP
+                    msg.modifyData<uint8_t>(MT_HEARTBEAT_RESP);
+                    if (ch->writeMsg(msg) < 0) {
+                        return -1;
+                    }
+                    break;
+                }
+                case MT_HEARTBEAT_RESP:
+                    // do nothing
+                    break;
+                default:
+                    LOG(WARNING) << "close channel because invalid message:" << type;
+                    return -1;
             }
             size -= len;
         }
