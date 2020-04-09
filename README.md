@@ -7,7 +7,8 @@ skynet 是一个轻量级的rpc调用中间件，类似于service mesh，主要�
 ### 安装依赖
 `apt install cmake libgoogle-glog-dev libuv1-dev libgflags-dev libzookeeper-mt-dev libboost-all-dev`
 
-### 可选依赖 `apt install libtcmalloc-minimal4`
+### 可选依赖
+ `apt install libtcmalloc-minimal4`
 
 ### 编译
 `mkdir build && cd build && cmake .. && make skynet`
