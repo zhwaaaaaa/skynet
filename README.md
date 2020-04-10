@@ -20,7 +20,7 @@ skynet解析到服务名称之后会向zookeeper查找和订阅服务名下所�
 后续会使用`unix domain socket`来替代`9997`和`9998`端口，降低网络开销。
 
 ## 一些设计
-本项目使用libuv库，并且设计了引用计数和缓存的ioBuf，实现数据转发领拷贝。消息转发链路的调用几乎不会在堆上有任何的内存分配。
+本项目使用libuv库，并且设计了引用计数和缓存的ioBuf，实现数据转发零拷贝，消息转发链路的调用几乎不会在堆上有任何的内存分配，从而拥有超高性能，几乎超越所有rpc框架。
 
 ## 性能
 使用[Java sdk](https://github.com/zhwaaaaaa/skynet-java "skynet-java")性能测试。
