@@ -45,7 +45,19 @@ namespace sn {
         using ThreadAttr = pthread_attr_t;
 
         template<class _ThreadType = Thread>
-        static _ThreadType *current();
+        static _ThreadType *current() {
+
+            static_assert(is_base_of<Thread, _ThreadType>::value || is_same<Thread, _ThreadType>::value,
+                          "必须是Thread或thread的子类");
+
+            Thread *thread = localPtr<Thread>().get();
+            if (thread) {
+                return dynamic_cast<_ThreadType *>(thread);
+            }
+            auto current = new Thread(pthread_self());
+            localPtr<_ThreadType>().reset(current);
+            return current;
+        }
 
     public:
 
@@ -114,6 +126,7 @@ namespace sn {
         }
 
         virtual ~Thread();
+
 #ifndef OS_MACOSX
     private:
         // _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -165,6 +178,7 @@ namespace sn {
                 LOG(FATAL) << "create thread fail";
             }
         }
+
 #endif
     public:
         virtual void join() const final;

@@ -54,21 +54,6 @@ namespace sn {
         }
     }
 
-    template<class _ThreadType>
-    _ThreadType *Thread::current() {
-
-        static_assert(is_base_of<Thread, _ThreadType>::value || is_same<Thread, _ThreadType>::value,
-                      "必须是Thread或thread的子类");
-
-        Thread *thread = localPtr<Thread>().get();
-        if (thread) {
-            return dynamic_cast<_ThreadType *>(thread);
-        }
-        auto current = new Thread(pthread_self());
-        localPtr<_ThreadType>().reset(current);
-        return current;
-    }
-
     void Thread::addExitCallBack(Thread::CallBack callBack) {
         if (Thread::current() == this) {
             exitCallBack.push_back(callBack);
