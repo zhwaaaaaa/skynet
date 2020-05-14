@@ -8,7 +8,7 @@
 #include <type_traits>
 #include <pthread.h>
 #include <utility>
-#include <bits/unique_ptr.h>
+#include <memory>
 #include <zconf.h>
 #include <vector>
 #include <thread>
@@ -65,8 +65,13 @@ namespace sn {
         }
 
         static void yield() {
+#if defined(OS_MACOSX)
+            pthread_yield_np();
+#else
             pthread_yield();
+#endif
         }
+
 
         static bool sleep(unsigned int ms) {
             return usleep(ms * 1000) == 0;
@@ -109,7 +114,7 @@ namespace sn {
         }
 
         virtual ~Thread();
-
+#ifndef OS_MACOSX
     private:
         // _GLIBCXX_RESOLVE_LIB_DEFECTS
         // 2097.  packaged_task constructors should be constrained
@@ -126,7 +131,7 @@ namespace sn {
 
         template<typename _InvokerType>
         static void *threadRunInParamConstructor(void *p) {
-            using _WT  = ParamWrapper<_InvokerType>;
+            using _WT = ParamWrapper<_InvokerType>;
             _WT *wPtr = static_cast<_WT *>(p);
             wPtr->thread->status = LIVED;
             localPtr<Thread>().reset(wPtr->thread);
@@ -153,14 +158,14 @@ namespace sn {
             join();
 
             auto invoker = thread::__make_invoker(__f, __args...);
-            using _InvokerType =  decltype(thread::__make_invoker(__f, __args...));
+            using _InvokerType = decltype(thread::__make_invoker(__f, __args...));
             const auto wrapper = new ParamWrapper<_InvokerType>({thread::__make_invoker(__f, __args...), this});
             int r = pthread_create(&id, nullptr, threadRunInParamConstructor<_InvokerType>, wrapper);
             if (r != 0) {
                 LOG(FATAL) << "create thread fail";
             }
         }
-
+#endif
     public:
         virtual void join() const final;
 

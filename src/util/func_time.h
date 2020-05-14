@@ -7,7 +7,6 @@
 
 #include <zconf.h>
 #include <ctime>
-#include <event.h>
 
 namespace sn {
     typedef void (*ActionFunc)(void *param);

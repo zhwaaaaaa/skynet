@@ -54,7 +54,7 @@ namespace sn {
         }
     }
 
-    template<class _ThreadType = Thread>
+    template<class _ThreadType>
     _ThreadType *Thread::current() {
 
         static_assert(is_base_of<Thread, _ThreadType>::value || is_same<Thread, _ThreadType>::value,
@@ -108,7 +108,8 @@ namespace sn {
         if (status != INIT) {
             throw runtime_error("[bug] thread started!! setPriority");
         }
-        sched_param param = {priority};
+        sched_param param{0};
+        param.sched_priority = (int)priority;
         pthread_attr_setschedparam(&attr, &param);
     }
 

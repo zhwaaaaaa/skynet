@@ -3,6 +3,7 @@
 //
 
 #include "func_time.h"
+#include <sys/time.h>
 
 namespace sn {
     long int currentTime() {

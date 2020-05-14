@@ -31,6 +31,7 @@ namespace sn {
 
     };
 
+    std::unique_ptr<NamingServer> createNamingServer();
 }
 
 

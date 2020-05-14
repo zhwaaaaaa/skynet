@@ -5,60 +5,40 @@ set(CMAKE_CXX_STANDARD 17)
 
 include_directories(src src/event)
 
-set(SOURCE_FILES
-        src/event/reactor.h
-        src/event/reactor.cpp
-        src/event/client.cpp
-        src/event/client.h
-        src/event/service_keeper.cpp
-        src/event/service_keeper.h
-        src/event/channel_keeper.cpp
-        src/event/channel_keeper.h
-        src/event/server.cpp
-        src/event/server.h
-        #registry
-        src/registry/naming_server.h
-        src/registry/ZkNamingServer.cpp
-        src/registry/ZkNamingServer.h
-        #util
-        src/util/endpoint.cpp
-        src/util/endpoint.h
-        src/util/func_time.h
-        src/util/func_time.cpp
-        src/util/Convert.h
-        # new event
-        src/nevent/IoBuf.h
-        src/nevent/IoBuf.cpp
-        src/nevent/channel.cpp
-        src/nevent/channel.h
-        src/nevent/channel_handler.cpp
-        src/nevent/channel_handler.h
-        src/nevent/io_error.h
-        src/nevent/stream_channel.cpp
-        src/nevent/stream_channel.h
-        src/nevent/tcp_listener.cpp
-        src/nevent/tcp_listener.h
-        src/nevent/ResponseHandler.cpp
-        src/nevent/ResponseHandler.h
-        src/nevent/shake_hands_handler.cpp
-        src/nevent/shake_hands_handler.h
-        src/nevent/RequestHandler.cpp
-        src/nevent/RequestHandler.h
-        src/nevent/TcpChannel.h)
+set(SOURCE_SUB_DIR event nevent thread util)
+foreach (dir ${SOURCE_SUB_DIR})
+    file(GLOB cur_files src/${dir}/*.cpp)
+    LIST(APPEND SOURCE_FILES ${cur_files})
+endforeach ()
 
-set(THREAD_FILES
-        #thread
-        src/thread/thread.cpp
-        src/thread/thread.h)
+if (CMAKE_HOST_APPLE)
+    add_definitions(-DOS_MACOSX)
 
-add_library(snThread ${THREAD_FILES})
-target_link_libraries(snThread glog gflags pthread)
+    include_directories(/usr/local/Cellar/glog/0.4.0/include)
+    link_directories(/usr/local/Cellar/glog/0.4.0/lib)
 
-add_library(skynetCoreLib ${SOURCE_FILES} ${THREAD_FILES})
-target_link_libraries(skynetCoreLib glog gflags uv zookeeper_mt)
+    include_directories(/usr/local/Cellar/libuv/1.37.0/include)
+    link_directories(/usr/local/Cellar/libuv/1.37.0/lib)
 
-add_executable(skynet src/main.cpp ${SOURCE_FILES} ${THREAD_FILES})
-target_link_libraries(skynet  glog gflags uv zookeeper_mt pthread tcmalloc_minimal)
+    include_directories(/usr/local/Cellar/gflags/2.2.2/include)
+    link_directories(/usr/local/Cellar/gflags/2.2.2/lib)
+
+    include_directories(/usr/local/Cellar/boost/1.72.0_2/include)
+    link_directories(/usr/local/Cellar/boost/1.72.0_2/lib)
+else ()
+    add_definitions(-DUSE_ZK)
+    list(APPEND SOURCE_FILES src/registry/ZkNamingServer.cpp)
+endif ()
+list(APPEND SOURCE_FILES src/registry/NamingServerFactory.cpp)
+
+MESSAGE(${SOURCE_FILES})
+
+add_executable(skynet src/main.cpp ${SOURCE_FILES})
+if (CMAKE_HOST_APPLE)
+    target_link_libraries(skynet glog gflags uv pthread)
+else ()
+    target_link_libraries(skynet glog gflags uv pthread tcmalloc_minimal zookeeper_mt)
+endif ()
 
 add_subdirectory("test/thread")
 add_subdirectory("test/event")
