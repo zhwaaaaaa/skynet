@@ -44,7 +44,7 @@ namespace sn {
         } else if (nread == UV_EOF) {
             LOG(ERROR) << "Close onMessageArrived:" << uv_strerror(nread);
             handler->onClose();
-        } else {
+        } else if (nread != 0) {
             LOG(ERROR) << "Error onMessageArrived:" << uv_strerror(nread);
             handler->onError();
         }

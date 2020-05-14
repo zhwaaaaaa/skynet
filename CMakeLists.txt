@@ -11,7 +11,7 @@ set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-include_directories(src src/event)
+include_directories(src)
 
 set(SOURCE_SUB_DIR event nevent thread util)
 foreach (dir ${SOURCE_SUB_DIR})

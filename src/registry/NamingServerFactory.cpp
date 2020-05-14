@@ -14,7 +14,7 @@ DEFINE_string(registry_zookeeper_ip_hosts, "localhost:2181", "zookeeper的ip:hos
 DEFINE_string(registry_zookeeper_namespace, "skynet", "zookeeper使用命名空间");
 DEFINE_int32(registry_zookeeper_receive_timeout, 5000, "zookeeper的receive timeout");
 #else
-DEFINE_string(registry_fix_ip_hosts, "localhost:9999", "固定的ip:port");
+DEFINE_string(registry_fix_ip_hosts, "127.0.0.1:9999", "固定的ip:port");
 //static std::string FLAGS_registry_fix_ip_hosts = "localhost:9999";
 namespace internal {
     using namespace std;
