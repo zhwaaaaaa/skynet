@@ -11,6 +11,9 @@
 #include <uv.h>
 #include <nevent/channel.h>
 #include "channel_keeper.h"
+#include <mutex>
+#include <condition_variable>
+
 
 namespace sn {
 
@@ -26,7 +29,16 @@ namespace sn {
 
         static void asyncEventExec(uv_async_t *handle);
 
+        static void onSignalReceive(uv_signal_t *handle, int signum);
+
+        static void onSignalReceiveOnce(uv_signal_t *handle, int signum);
+
         void runLoop();
+
+    private:
+        std::mutex stopLock;
+        std::condition_variable condVar;
+        bool stopped = false;
 
     protected:
         uv_loop_t loop;
@@ -43,15 +55,21 @@ namespace sn {
     public:
         Reactor();
 
+        virtual ~Reactor();
+
         void addLoopable(Loopable &loopable) {
             loopable.addToLoop(&loop);
         }
+
+        void listenSignal(EventFunc func, void *p, int signum, bool handleOnce = false);
 
         void sendEvent(EventFunc func, void *p);
 
         void start(bool newThread = false);
 
         void stop();
+
+        void waitingStop();
 
     };
 

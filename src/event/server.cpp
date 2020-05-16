@@ -51,7 +51,22 @@ namespace sn {
         return chs.size();
     }
 
-    Server::Server(NamingServer &server):namingServer(&server) {
+    Server::Server(NamingServer &server) : namingServer(&server) {
+    }
+
+    void Server::onLoopStart() {
+        Thread::local<Server>(this);
+    }
+
+    void Server::onLoopStop() {
+        LOG(INFO) << "Server closing";
+
+        for(const auto &p: serverAppChs){
+            namingServer->unregisterService(p.first);
+        }
+        serverAppChs.clear();
+        LOG(INFO) << "Server closed";
+        Thread::localRelease<Server>();
     }
 
 

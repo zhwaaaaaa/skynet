@@ -12,19 +12,13 @@
 #include <boost/unordered_map.hpp>
 
 namespace sn {
-    using ServiceNamePtr = Segment <uint8_t> *;
-    using BodyDescPtr = Segment <uint32_t> *;
-    struct ServiceDesc {
-        ServiceNamePtr name;
-        BodyDescPtr param;
-        BodyDescPtr result;
-    };
+    using ServiceNamePtr = Segment<uint8_t> *;
 
     class ChannelHolder : public ChannelGroup {
     private:
         uint32_t index;
     protected:
-        vector <ChannelPtr> chs;
+        vector<ChannelPtr> chs;
     public:
         ChannelHolder();
 
@@ -47,20 +41,16 @@ namespace sn {
 
     class Server : public Reactor {
     private:
-        boost::unordered_map<string_view, shared_ptr < ChannelHolder>> serverAppChs;
+        boost::unordered_map<string_view, shared_ptr<ChannelHolder>> serverAppChs;
         boost::unordered_map<uint32_t, ChannelPtr> responseChs;
         NamingServer *namingServer;
     public:
         explicit Server(NamingServer &server);
 
     protected:
-        void onLoopStart() override {
-            Thread::local<Server>(this);
-        }
+        void onLoopStart() override;
 
-        void onLoopStop() override {
-            Thread::localRelease<Server>();
-        }
+        void onLoopStop() override;
 
 
     public:

@@ -25,14 +25,9 @@ namespace sn {
         boost::unordered_map<uint32_t, ChannelPtr> responseChs;
         NamingServer *namingServer;
     protected:
+        void onLoopStart() override;
 
-        void onLoopStart() override {
-            Thread::local<Client>(this);
-        }
-
-        void onLoopStop() override {
-            Thread::localRelease<Client>();
-        }
+        void onLoopStop() override;
 
     public:
         explicit Client(NamingServer &namingServer);

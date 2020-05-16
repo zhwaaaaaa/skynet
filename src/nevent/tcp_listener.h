@@ -37,10 +37,15 @@ namespace sn {
         uv_tcp_t handle;
         EndPoint raddr;
         int backLog;
+        bool closed = false;
 
 
     public:
         TcpListener(const EndPoint &raddr, int backLog = 128) : raddr(raddr), backLog(backLog) {
+        }
+
+        ~TcpListener() {
+            close();
         }
 
     public:
@@ -65,6 +70,13 @@ namespace sn {
             }
 
             LOG(INFO) << "Listen at " << raddr;
+        }
+
+        void close() {
+            if (!closed) {
+                uv_close((uv_handle_t *) &handle, nullptr);
+                closed = true;
+            }
         }
 
     };

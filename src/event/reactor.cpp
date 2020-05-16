@@ -19,6 +19,16 @@ namespace sn {
         uv_run(&loop, UV_RUN_DEFAULT);
         onLoopStop();
         Thread::localRelease<Reactor>();
+        std::unique_lock<std::mutex> lck(stopLock);
+        stopped = true;
+        condVar.notify_all();
+    }
+
+    void Reactor::waitingStop() {
+        std::unique_lock<std::mutex> lck(stopLock);
+        while (!stopped) {
+            condVar.wait(lck);
+        }
     }
 
     void Reactor::start(bool newThread) {
@@ -47,8 +57,9 @@ namespace sn {
         }
     }
 
+    template<class T>
     struct AsyncContext {
-        uv_async_t uvHandle;
+        T uvHandle;
         EventFunc func;
         void *p;
         Reactor *reactor;
@@ -58,14 +69,38 @@ namespace sn {
         }
     };
 
+    void Reactor::onSignalReceive(uv_signal_t *handle, int signum) {
+        AsyncContext<uv_signal_t> *ctx = static_cast<AsyncContext<uv_signal_t> *>(handle->data);
+        ctx->func(ctx->p);
+    }
+
+    void Reactor::onSignalReceiveOnce(uv_signal_t *handle, int signum) {
+        AsyncContext<uv_signal_t> *ctx = static_cast<AsyncContext<uv_signal_t> *>(handle->data);
+        ctx->func(ctx->p);
+        delete ctx;
+    }
+
+    void Reactor::listenSignal(EventFunc func, void *p, int signum, bool handleOnce) {
+        AsyncContext<uv_signal_t> *ctx = new AsyncContext<uv_signal_t>(func, p, this);
+        uv_signal_t *s = &ctx->uvHandle;
+        uv_signal_init(&loop, s);
+        if (handleOnce) {
+            uv_signal_start_oneshot(s, onSignalReceiveOnce, signum);
+        } else {
+            uv_signal_start(s, onSignalReceive, signum);
+        }
+
+    }
+
+
     void Reactor::asyncEventExec(uv_async_t *handle) {
-        AsyncContext *ctx = static_cast<AsyncContext *>(handle->data);
+        AsyncContext<uv_async_t> *ctx = static_cast<AsyncContext<uv_async_t> *>(handle->data);
         ctx->func(ctx->p);
         delete ctx;
     }
 
     void Reactor::sendEvent(EventFunc func, void *p) {
-        AsyncContext *ctx = new AsyncContext(func, p, this);
+        AsyncContext<uv_async_t> *ctx = new AsyncContext<uv_async_t>(func, p, this);
         uv_async_t *async = &ctx->uvHandle;
         uv_async_init(&loop, async, asyncEventExec);
         uv_async_send(async);
@@ -81,6 +116,10 @@ namespace sn {
         Reactor *reactor = static_cast<Reactor *>(handle->data);
         free(handle);
         uv_stop(&reactor->loop);
+    }
+
+    Reactor::~Reactor() {
+        uv_loop_close(&loop);
     }
 
 

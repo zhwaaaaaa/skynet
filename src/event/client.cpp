@@ -203,4 +203,18 @@ namespace sn {
 
     Client::Client(NamingServer &namingServer) : namingServer(&namingServer) {}
 
+    void Client::onLoopStart() {
+        Thread::local<Client>(this);
+    }
+
+    void Client::onLoopStop() {
+        LOG(INFO)<<"Client closing....";
+        for(const auto & p:responseChs){
+            p.second->close();
+        }
+        responseChs.clear();
+        LOG(INFO)<<"Client closed";
+        Thread::localRelease<Client>();
+    }
+
 }
