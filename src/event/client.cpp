@@ -34,7 +34,9 @@ namespace sn {
         }
 
         ServiceKeeper *serviceKeeper = ctx->client->getByService(ctx->service);
-        serviceKeeper->servChanged(eps);
+        if (serviceKeeper) {
+            serviceKeeper->servChanged(eps);
+        }
         /* auto iterator = client.serviceMap.find(serv);
          if (iterator != client.serviceMap.end()) {
              // 取消订阅的时候回调函数是同步执行的。所以取消订阅的时候service一定没有人用了。
@@ -119,9 +121,13 @@ namespace sn {
         iterator->second->noCare(channelId);
         auto i = iterator->second->count();
         if (!i) {
+            // service 不再需要了
             LOG(INFO) << "disable not need service:" << key;
+            const char *c = iterator->first.data();
+            serviceMap.erase(iterator);
             // 应该用定时器延时注销
             namingServer->unsubscribe(key);
+            free((void *) c);
         }
         return i;
     }
